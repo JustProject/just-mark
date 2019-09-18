@@ -35,7 +35,7 @@
 
 <script>
 import bus from '@/bus'
-import { ipcRenderer } from 'electron'
+import { ipcRenderer } from '@/../main/electron'
 import importIcon from '@/assets/icons/import_file.svg'
 
 export default {
@@ -117,3 +117,4 @@ export default {
   }
 }
 </style>
+

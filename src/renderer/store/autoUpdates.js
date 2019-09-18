@@ -1,4 +1,4 @@
-import { ipcRenderer } from 'electron'
+import { ipcRenderer } from '@/../main/electron'
 import notice from '../services/notification'
 
 const state = {}
@@ -21,7 +21,7 @@ const actions = {
     ipcRenderer.on('AGANI::UPDATE_NOT_AVAILABLE', (e, message) => {
       notice.notify({
         title: 'Update not Available',
-        type: 'primary',
+        type: 'warning',
         message
       })
     })

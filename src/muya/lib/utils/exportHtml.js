@@ -1,12 +1,12 @@
 import marked from '../parser/marked'
-import Prism from 'prismjs'
+import Prism from 'prismjs2'
 import katex from 'katex'
-import mermaid from 'mermaid/dist/mermaid.core'
+import mermaid from 'mermaid'
 import flowchart from 'flowchart.js'
 import Diagram from '../parser/render/sequence'
 import vegaEmbed from 'vega-embed'
 import githubMarkdownCss from 'github-markdown-css/github-markdown.css'
-import highlightCss from 'prismjs/themes/prism.css'
+import highlightCss from 'prismjs2/themes/prism.css'
 import katexCss from 'katex/dist/katex.css'
 import { EXPORT_DOMPURIFY_CONFIG } from '../config'
 import { sanitize, unescapeHtml } from '../utils'
@@ -29,7 +29,6 @@ class ExportHtml {
     this.markdown = markdown
     this.muya = muya
     this.exportContainer = null
-    this.mathRendererCalled = false
   }
 
   renderMermaid () {
@@ -46,7 +45,7 @@ class ExportHtml {
       theme: 'default'
     })
     mermaid.init(undefined, this.exportContainer.querySelectorAll('div.mermaid'))
-    if (this.muya) {
+    if (this.muya){
       mermaid.initialize({
         theme: this.muya.options.mermaidTheme
       })
@@ -56,8 +55,8 @@ class ExportHtml {
   async renderDiagram () {
     const selector = 'code.language-vega-lite, code.language-flowchart, code.language-sequence'
     const RENDER_MAP = {
-      flowchart: flowchart,
-      sequence: Diagram,
+      'flowchart': flowchart,
+      'sequence': Diagram,
       'vega-lite': vegaEmbed
     }
     const codes = this.exportContainer.querySelectorAll(selector)
@@ -74,9 +73,7 @@ class ExportHtml {
         Object.assign(options, { theme: 'hand' })
       } else if (functionType === 'vega-lite') {
         Object.assign(options, {
-          actions: false,
-          tooltip: false,
-          renderer: 'svg',
+          actions: false, tooltip: false, renderer: 'svg',
           theme: 'latimes' // only render light theme
         })
       }
@@ -90,21 +87,13 @@ class ExportHtml {
         }
       } catch (err) {
         console.log(err)
-        diagramContainer.innerHTML = '< Invalid Diagram >'
+        diagramContainer.innerHTML = `< Invalid Diagram >`
       }
     }
   }
 
-  mathRenderer = (math, displayMode) => {
-    this.mathRendererCalled = true
-    return katex.renderToString(math, {
-      displayMode
-    })
-  }
-
   // render pure html by marked
   async renderHtml () {
-    this.mathRendererCalled = false
     let html = marked(this.markdown, {
       highlight (code, lang) {
         // Language may be undefined (GH#591)
@@ -131,7 +120,11 @@ class ExportHtml {
           return `:${emoji}:`
         }
       },
-      mathRenderer: this.mathRenderer
+      mathRenderer (math, displayMode) {
+        return katex.renderToString(math, {
+          displayMode
+        })
+      }
     })
     html = sanitize(html, EXPORT_DOMPURIFY_CONFIG)
     const exportContainer = this.exportContainer = document.createElement('div')
@@ -163,11 +156,10 @@ class ExportHtml {
    * @param {*} title Page title
    * @param {*} printOptimization Optimize HTML and CSS for printing
    */
-  async generate (title = '', printOptimization = false, extraCss = '') {
+  async generate (title = '', printOptimization = false) {
     // WORKAROUND: Hide Prism.js style when exporting or printing. Otherwise the background color is white in the dark theme.
     const highlightCssStyle = printOptimization ? `@media print { ${highlightCss} }` : highlightCss
     const html = await this.renderHtml()
-    const katexCssStyle = this.mathRendererCalled ? katexCss : ''
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -181,7 +173,7 @@ class ExportHtml {
   ${highlightCssStyle}
   </style>
   <style>
-  ${katexCssStyle}
+  ${katexCss}
   </style>
   <style>
     .markdown-body {
@@ -210,7 +202,6 @@ class ExportHtml {
       }
     }
   </style>
-  <style>${extraCss}</style>
 </head>
 <body>
   <article class="markdown-body">

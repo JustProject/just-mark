@@ -4,7 +4,6 @@
     <el-tree
       v-if="toc.length"
       :data="toc"
-      :default-expand-all="true"
       :props="defaultProps"
       @node-click="handleClick"
       :expand-on-click-node="false"
@@ -19,31 +18,31 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
-import bus from '../../bus'
-import EmptyIcon from '@/assets/icons/undraw_toc_empty.svg'
+  import { mapState } from 'vuex'
+  import bus from '../../bus'
+  import EmptyIcon from '@/assets/icons/undraw_toc_empty.svg'
 
-export default {
-  data () {
-    this.EmptyIcon = EmptyIcon
-    return {
-      defaultProps: {
-        children: 'children',
-        label: 'label'
+  export default {
+    data () {
+      this.EmptyIcon = EmptyIcon
+      return {
+         defaultProps: {
+          children: 'children',
+          label: 'label'
+        }
+      }
+    },
+    computed: {
+      ...mapState({
+        'toc': state => state.editor.toc
+      })
+    },
+    methods: {
+      handleClick ({ slug }) {
+        bus.$emit('scroll-to-header', slug)
       }
     }
-  },
-  computed: {
-    ...mapState({
-      toc: state => state.editor.toc
-    })
-  },
-  methods: {
-    handleClick ({ slug }) {
-      bus.$emit('scroll-to-header', slug)
-    }
   }
-}
 </script>
 
 <style>

@@ -1,26 +1,43 @@
 import path from 'path'
-import { ipcRenderer, shell } from 'electron'
-import { addFile, unlinkFile, addDirectory, unlinkDirectory } from './treeCtrl'
+import { ipcRenderer, shell } from '@/../main/electron'
+import { addFile, unlinkFile, changeFile, addDirectory, unlinkDirectory } from './treeCtrl'
 import bus from '../bus'
 import { create, paste, rename } from '../util/fileSystem'
 import { PATH_SEPARATOR } from '../config'
 import notice from '../services/notification'
 import { getFileStateFromData } from './help'
 
+const width = localStorage.getItem('side-bar-width')
+const sideBarWidth = typeof +width === 'number' ? Math.max(+width, 180) : 280
+
 const state = {
+  sideBarWidth,
   activeItem: {},
   createCache: {},
-  // Use to cache newly created filename, for open immediately.
+  // Use to cache newly created filename, for open iimmediately.
   newFileNameCache: '',
   renameCache: null,
   clipboard: null,
   projectTree: null
 }
 
-const getters = {}
+const getters = {
+  fileList: state => {
+    const files = []
+    const travel = folder => {
+      files.push(...folder.files.filter(f => f.isMarkdown))
+      for (const childFolder of folder.folders) {
+        travel(childFolder)
+      }
+    }
+
+    if (state.projectTree) travel(state.projectTree)
+    return files.sort()
+  }
+}
 
 const mutations = {
-  SET_ROOT_DIRECTORY (state, pathname) {
+  SET_PROJECT_TREE (state, pathname) {
     let name = path.basename(pathname)
     if (!name) {
       // Root directory such "/" or "C:\"
@@ -39,6 +56,10 @@ const mutations = {
       files: []
     }
   },
+  SET_SIDE_BAR_WIDTH (state, width) {
+    localStorage.setItem('side-bar-width', Math.max(+width, 180))
+    state.sideBarWidth = width
+  },
   SET_NEWFILENAME (state, name) {
     state.newFileNameCache = name
   },
@@ -49,6 +70,10 @@ const mutations = {
   UNLINK_FILE (state, change) {
     const { projectTree } = state
     unlinkFile(projectTree, change)
+  },
+  CHANGE_FILE (state, change) {
+    const { projectTree } = state
+    changeFile(projectTree, change)
   },
   ADD_DIRECTORY (state, change) {
     const { projectTree } = state
@@ -69,13 +94,32 @@ const mutations = {
   },
   SET_RENAME_CACHE (state, cache) {
     state.renameCache = cache
+  },
+  UPDATE_PROJECT_CONTENT (state, { markdown, pathname }) {
+    if (!state.projectTree) return
+    const travel = folder => {
+      folder.files.filter(file => file.isMarkdown)
+        .forEach(file => {
+          if (file.pathname === pathname) {
+            file.data.markdown = markdown
+          }
+        })
+      for (const childFolder of folder.folders) {
+        travel(childFolder)
+      }
+    }
+    travel(state.projectTree)
   }
 }
 
 const actions = {
   LISTEN_FOR_LOAD_PROJECT ({ commit, dispatch }) {
-    ipcRenderer.on('mt::open-directory', (e, pathname) => {
-      commit('SET_ROOT_DIRECTORY', pathname)
+    ipcRenderer.on('AGANI::open-project', (e, pathname) => {
+      // Initialize editor and show empty/new tab
+      dispatch('NEW_BLANK_FILE')
+
+      dispatch('INIT_STATUS', true)
+      commit('SET_PROJECT_TREE', pathname)
       commit('SET_LAYOUT', {
         rightColumn: 'files',
         showSideBar: true,
@@ -101,21 +145,25 @@ const actions = {
           commit('UNLINK_FILE', change)
           commit('SET_SAVE_STATUS_WHEN_REMOVE', change)
           break
+        case 'change':
+          commit('CHANGE_FILE', change)
+          break
         case 'addDir':
           commit('ADD_DIRECTORY', change)
           break
         case 'unlinkDir':
           commit('UNLINK_DIRECTORY', change)
           break
-        case 'change':
-          break
         default:
           if (process.env.NODE_ENV === 'development') {
-            console.log(`Unknown directory watch type: "${type}"`)
+            console.log('unknown directory watch type')
           }
           break
       }
     })
+  },
+  CHANGE_SIDE_BAR_WIDTH ({ commit }, width) {
+    commit('SET_SIDE_BAR_WIDTH', width)
   },
   CHANGE_ACTIVE_ITEM ({ commit }, activeItem) {
     commit('SET_ACTIVE_ITEM', activeItem)
@@ -124,7 +172,7 @@ const actions = {
     commit('SET_CLIPBOARD', data)
   },
   ASK_FOR_OPEN_PROJECT ({ commit }) {
-    ipcRenderer.send('mt::ask-for-open-project-in-sidebar')
+    ipcRenderer.send('AGANI::ask-for-open-project-in-sidebar')
   },
   LISTEN_FOR_SIDEBAR_CONTEXT_MENU ({ commit, state }) {
     bus.$on('SIDEBAR::show-in-folder', () => {
@@ -198,10 +246,6 @@ const actions = {
       .then(() => {
         commit('RENAME_IF_NEEDED', { src, dest })
       })
-  },
-
-  OPEN_SETTING_WINDOW () {
-    ipcRenderer.send('mt::open-setting-window')
   }
 }
 

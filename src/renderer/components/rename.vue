@@ -1,6 +1,6 @@
 <template>
   <div class="rename">
-    <el-dialog
+    <el-dialog 
       :visible.sync="showRename"
       :show-close="false"
       :modal="true"
@@ -16,7 +16,7 @@
           >
           <svg class="icon" aria-hidden="true" @click="confirm">
             <use xlink:href="#icon-markdown"></use>
-          </svg>
+          </svg>        
         </div>
       </div>
     </el-dialog>
@@ -24,45 +24,46 @@
 </template>
 
 <script>
-import bus from '../bus'
-import { mapState } from 'vuex'
+  import bus from '../bus'
+  import { mapState } from 'vuex'
 
-export default {
-  data () {
-    return {
-      showRename: false,
-      tempName: ''
-    }
-  },
-  created () {
-    this.$nextTick(() => {
-      bus.$on('rename', this.handleRename)
-    })
-  },
-  beforeDestroy () {
-    bus.$off('rename', this.handleRename)
-  },
-  computed: {
-    ...mapState({
-      filename: state => state.editor.currentFile.filename
-    })
-  },
-  methods: {
-    handleRename () {
-      this.showRename = true
-      this.tempName = this.filename
-      this.$refs.search.focus()
+  export default {
+    data () {
+      return {
+        showRename: false,
+        tempName: ''
+      }
     },
-    confirm () {
-      this.$store.dispatch('RENAME', this.tempName)
-      this.showRename = false
+    created () {
+      this.$nextTick(() => {
+        bus.$on('rename', this.handleRename)
+      })
+    },
+    beforeDestroy () {
+      bus.$off('rename', this.handleRename)
+    },
+    computed: {
+      ...mapState({
+        filename: state => state.editor.currentFile.filename
+      })
+    },
+    methods: {
+      handleRename () {
+        this.showRename = true
+        this.tempName = this.filename
+        this.$refs.search.focus()
+      },
+      confirm () {
+        this.$store.dispatch('RENAME', this.tempName)
+        this.showRename = false
+      }
     }
   }
-}
 </script>
 
 <style>
   .rename .el-dialog__header {
+    height: 42px;
     box-sizing: border-box;
   }
   .rename .el-dialog__body {
@@ -74,20 +75,22 @@ export default {
   .search-wrapper {
     margin-top: 8px;
     z-index: 10000;
-    position: relative;
+    position: absolute;
+    top: 0;
     left: 50%;
     transform: translateX(-50%);
     width: 410px;
+    margin: 0 auto;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
     align-items: center;
-    box-shadow: none;
-    border: none;
+    height: auto;
+    padding: 5px;
+    background: var(--floatBorderColor);
+    box-shadow: 0 3px 8px var(--floatBorderColor);
+    border: 1px solid var(--floatBorderColor);
     border-radius: 3px;
-    margin: 0;
-    padding: 0 8px;
-
     & .input-wrapper {
       display: flex;
       width: 100%;

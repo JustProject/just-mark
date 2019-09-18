@@ -1,4 +1,4 @@
-import axios from '../axios'
+import axios from 'axios'
 import { serialize, merge, dataURItoBlob } from '../util'
 
 const CONFIG = {
@@ -36,16 +36,11 @@ const resource = {
     })
   },
   fetchImgToBase64 (url) {
-    return axios({
-      method: 'get',
-      url,
-      responseType: 'blob'
-    })
+    return axios.get(url, { responseType: 'blob' })
       .then(({ data }) => new Promise((resolve, reject) => {
         const reader = new window.FileReader()
         reader.onloadend = () => resolve(reader.result)
         reader.onerror = reject
-
         reader.readAsDataURL(data)
       }))
   },

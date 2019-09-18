@@ -1,5 +1,3 @@
-import crypto from 'crypto'
-
 // help functions
 const easeInOutQuad = function (t, b, c, d) {
   t /= d / 2
@@ -25,7 +23,7 @@ const deleteItem = key => value => {
 }
 
 export const serialize = function (params) {
-  return Object.keys(params).map(key => `${key}=${encodeURI(params[key])}`).join('&')
+  return Object.keys(params).map(key => `${key}=${params[key]}`).join('&')
 }
 
 export const merge = function (...args) {
@@ -50,13 +48,13 @@ export const collection = {
   setItem (emoji) {
     const data = localStorage.getItem(DOTU_COLLECTION)
     if (data) {
-      const col = JSON.parse(data)
+      let col = JSON.parse(data)
       if (col.findIndex(c => c.link === emoji.link) === -1) {
         col.push(emoji)
       }
       localStorage.setItem(DOTU_COLLECTION, JSON.stringify(col))
     } else {
-      localStorage.setItem(DOTU_COLLECTION, JSON.stringify([emoji]))
+      localStorage.setItem(DOTU_COLLECTION, JSON.stringify([ emoji ]))
     }
   },
   getItems () {
@@ -87,7 +85,7 @@ export const dotuHistory = {
       }
       localStorage.setItem(DOTU, JSON.stringify(history))
     } else {
-      localStorage.setItem(DOTU, JSON.stringify([value]))
+      localStorage.setItem(DOTU, JSON.stringify([ value ]))
     }
   },
   getItems () {
@@ -138,9 +136,9 @@ export const adjustCursor = (cursor, preline, line, nextline) => {
 }
 
 export const animatedScrollTo = function (element, to, duration, callback) {
-  const start = element.scrollTop
-  const change = to - start
-  const animationStart = +new Date()
+  let start = element.scrollTop
+  let change = to - start
+  let animationStart = +new Date()
   let animating = true
   let lastpos = null
 
@@ -185,18 +183,6 @@ export const hasKeys = obj => Object.keys(obj).length > 0
  * @param {*} obj Object to clone
  * @param {Boolean} deepCopy Create a shallow (false) or deep copy (true)
  */
-export const cloneObj = (obj, deepCopy = true) => {
+export const cloneObj = (obj, deepCopy=true) => {
   return deepCopy ? JSON.parse(JSON.stringify(obj)) : Object.assign({}, obj)
 }
-
-export const getHash = (content, encoding, type) => {
-  return crypto.createHash(type).update(content, encoding).digest('hex')
-}
-
-export const getContentHash = content => {
-  return getHash(content, 'utf8', 'sha1')
-}
-
-export const isOsx = process.platform === 'darwin'
-export const isWindows = process.platform === 'win32'
-export const isLinux = process.platform === 'linux'

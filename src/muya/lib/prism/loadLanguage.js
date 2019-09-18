@@ -31,32 +31,6 @@ function getPeerDependents (mainLanguage) {
   return peerDependentsMap[mainLanguage] || []
 }
 
-// Look for the origin languge by alias
-export const transfromAliasToOrigin = arr => {
-  const result = []
-  for (const lang of arr) {
-    if (languages[lang]) {
-      result.push(lang)
-    } else {
-      const language = Object.keys(languages).find(name => {
-        const l = languages[name]
-        if (l.alias) {
-          return l.alias === lang || Array.isArray(l.alias) && l.alias.includes(lang)
-        }
-        return false
-      })
-
-      if (language) {
-        result.push(language)
-      } else {
-        // The lang is not exist, the will handle in `initLoadLanguage`
-        result.push(lang)
-      }
-    }
-  }
-  return result
-}
-
 function initLoadLanguage (Prism) {
   return async function loadLanguages (arr, withoutDependencies) {
     // If no argument is passed, load all components
@@ -66,7 +40,7 @@ function initLoadLanguage (Prism) {
       })
     }
     if (arr && !arr.length) {
-      return Promise.reject(new Error('The first parameter should be a list of load languages or single language.'))
+      return Promise.reject('The first parameter should be a list of load languages or single language.')
     }
 
     if (!Array.isArray(arr)) {
@@ -74,8 +48,8 @@ function initLoadLanguage (Prism) {
     }
 
     const promises = []
-    const transformedLangs = transfromAliasToOrigin(arr)
-    for (const language of transformedLangs) {
+
+    for (const language of arr) {
       // handle not existed
       if (!languages[language]) {
         promises.push(Promise.resolve({
@@ -100,7 +74,7 @@ function initLoadLanguage (Prism) {
       }
 
       delete Prism.languages[language]
-      await import('prismjs/components/prism-' + language)
+      await import('prismjs2/components/prism-' + language)
       loadedCache.add(language)
       promises.push(Promise.resolve({
         status: 'loaded',

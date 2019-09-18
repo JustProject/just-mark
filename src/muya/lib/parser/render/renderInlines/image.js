@@ -1,153 +1,77 @@
-import { CLASS_OR_ID } from '../../../config'
+import { CLASS_OR_ID, IMAGE_EXT_REG, isInElectron } from '../../../config'
 import { getImageInfo } from '../../../utils'
-import ImageIcon from '../../../assets/pngicon/image/2.png'
-import ImageFailIcon from '../../../assets/pngicon/image_fail/2.png'
-import DeleteIcon from '../../../assets/pngicon/delete/2.png'
-
-const renderIcon = (h, className, icon) => {
-  const selector = `a.${className}`
-  const iconVnode = h('i.icon', h('i.icon-inner', {
-    style: {
-      background: `url(${icon}) no-repeat`,
-      'background-size': '100%'
-    }
-  }, ''))
-
-  return h(selector, {
-    attrs: {
-      contenteditable: 'false'
-    }
-  }, iconVnode)
-}
 
 // I dont want operate dom directly, is there any better method? need help!
 export default function image (h, cursor, block, token, outerClass) {
-  const imageInfo = getImageInfo(token.attrs.src)
-  const { selectedImage } = this.muya.contentState
-  const data = {
-    dataset: {
-      raw: token.raw
-    }
+  const { eventCenter } = this
+  const { start: cursorStart, end: cursorEnd } = cursor
+  const { start, end } = token.range
+
+  if (
+    cursorStart.key === cursorEnd.key &&
+    cursorStart.offset === cursorEnd.offset &&
+    cursorStart.offset === end - 1 &&
+    !IMAGE_EXT_REG.test(token.src) &&
+    isInElectron
+  ) {
+    eventCenter.dispatch('image-path', token.src)
   }
+
+  const className = this.getClassName(outerClass, block, token, cursor)
+  const imageClass = CLASS_OR_ID['AG_IMAGE_MARKED_TEXT']
+  const titleContent = this.highlight(h, block, start, start + 2 + token.alt.length, token)
+  const srcContent = this.highlight(
+    h, block,
+    start + 2 + token.alt.length + token.backlash.first.length + 2,
+    start + 2 + token.alt.length + token.backlash.first.length + 2 + token.srcAndTitle.length,
+    token
+  )
+
+  const secondBracketContent = this.highlight(
+    h, block,
+    start + 2 + token.alt.length + token.backlash.first.length,
+    start + 2 + token.alt.length + token.backlash.first.length + 2,
+    token
+  )
+
+  const lastBracketContent = this.highlight(h, block, end - 1, end, token)
+
+  const firstBacklashStart = start + 2 + token.alt.length
+
+  const secondBacklashStart = end - 1 - token.backlash.second.length
+
   let id
   let isSuccess
-  let { src } = imageInfo
-  const alt = token.attrs.alt
-  const title = token.attrs.title
-  const width = token.attrs.width
-  const height = token.attrs.height
+  let selector
+  const imageInfo = getImageInfo(token.src + encodeURI(token.backlash.second))
+  const { src } = imageInfo
+  const alt = token.alt + encodeURI(token.backlash.first)
+  const { title } = token
 
   if (src) {
-    ({ id, isSuccess } = this.loadImageAsync(imageInfo, token.attrs))
+    ({ id, isSuccess } = this.loadImageAsync(imageInfo, alt, className))
   }
-  let wrapperSelector = id
-    ? `span#${id}.${CLASS_OR_ID.AG_INLINE_IMAGE}`
-    : `span.${CLASS_OR_ID.AG_INLINE_IMAGE}`
 
-  const imageIcons = [
-    renderIcon(h, 'ag-image-icon-success', ImageIcon),
-    renderIcon(h, 'ag-image-icon-fail', ImageFailIcon),
-    renderIcon(h, 'ag-image-icon-close', DeleteIcon)
+  selector = id ? `span#${id}.${imageClass}.${CLASS_OR_ID['AG_REMOVE']}` : `span.${imageClass}.${CLASS_OR_ID['AG_REMOVE']}`
+
+  if (isSuccess) {
+    selector += `.${className}`
+  } else {
+    selector += `.${CLASS_OR_ID['AG_IMAGE_FAIL']}`
+  }
+  const children = [
+    ...titleContent,
+    ...this.backlashInToken(h, token.backlash.first, className, firstBacklashStart, token),
+    ...secondBracketContent,
+    h(`span.${CLASS_OR_ID['AG_IMAGE_SRC']}`, srcContent),
+    ...this.backlashInToken(h, token.backlash.second, className, secondBacklashStart, token),
+    ...lastBracketContent
   ]
 
-  const renderImageContainer = (...args) => {
-    const data = {}
-    if (title) {
-      Object.assign(data, {
-        dataset: { title }
-      })
-    }
-    return h(`span.${CLASS_OR_ID.AG_IMAGE_CONTAINER}`, data, args)
-  }
-
-  if (typeof token.attrs['data-align'] === 'string') {
-    wrapperSelector += `.${token.attrs['data-align']}`
-  }
-
-  // the src image is still loading, so use the url Map base64.
-  if (this.urlMap.has(src)) {
-    // fix: it will generate a new id if the image is not loaded.
-    const { selectedImage } = this.muya.contentState
-    if (selectedImage && selectedImage.token.attrs.src === src && selectedImage.imageId !== id) {
-      selectedImage.imageId = id
-    }
-    src = this.urlMap.get(src)
-    isSuccess = true
-  }
-
-  if (alt.startsWith('loading-')) {
-    wrapperSelector += `.${CLASS_OR_ID.AG_IMAGE_UPLOADING}`
-    Object.assign(data.dataset, {
-      id: alt
-    })
-    if (this.urlMap.has(alt)) {
-      src = this.urlMap.get(alt)
-      isSuccess = true
-    }
-  }
-
-  if (src) {
-    // image is loading...
-    if (typeof isSuccess === 'undefined') {
-      wrapperSelector += `.${CLASS_OR_ID.AG_IMAGE_LOADING}`
-    } else if (isSuccess === true) {
-      wrapperSelector += `.${CLASS_OR_ID.AG_IMAGE_SUCCESS}`
-    } else {
-      wrapperSelector += `.${CLASS_OR_ID.AG_IMAGE_FAIL}`
-    }
-
-    // Add image selected class name.
-    if (selectedImage) {
-      const { key, token: selectToken } = selectedImage
-      if (
-        key === block.key &&
-        selectToken.range.start === token.range.start &&
-        selectToken.range.end === token.range.end
-      ) {
-        wrapperSelector += `.${CLASS_OR_ID.AG_INLINE_IMAGE_SELECTED}`
-      }
-    }
-
-    const renderImage = () => {
-      const data = {
-        props: { alt: alt.replace(/[`*{}[\]()#+\-.!_>~:|<>$]/g, ''), src, title }
-      }
-
-      if (typeof width === 'number') {
-        Object.assign(data.props, { width })
-      }
-
-      if (typeof height === 'number') {
-        Object.assign(data.props, { height })
-      }
-
-      return h('img', data)
-    }
-
-    return isSuccess
-      ? [
-        h(wrapperSelector, data, [
-          ...imageIcons,
-          renderImageContainer(
-            // An image description has inline elements as its contents.
-            // When an image is rendered to HTML, this is standardly used as the image’s alt attribute.
-            renderImage()
-          )
-        ])
-      ]
-      : [
-        h(wrapperSelector, data, [
-          ...imageIcons,
-          renderImageContainer()
-        ])
-      ]
-  } else {
-    wrapperSelector += `.${CLASS_OR_ID.AG_EMPTY_IMAGE}`
-    return [
-      h(wrapperSelector, data, [
-        ...imageIcons,
-        renderImageContainer()
-      ])
+  return isSuccess
+    ? [
+      h(selector, children),
+      h('img', { props: { alt, src, title } })
     ]
-  }
+    : [h(selector, children)]
 }

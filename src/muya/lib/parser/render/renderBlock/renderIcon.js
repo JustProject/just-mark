@@ -23,16 +23,16 @@ import mermaidIcon from '../../../assets/pngicon/mermaid/2.png'
 import vegaIcon from '../../../assets/pngicon/chart/2.png'
 
 const FUNCTION_TYPE_HASH = {
-  mermaid: mermaidIcon,
-  flowchart: flowchartIcon,
-  sequence: sequenceIcon,
+  'mermaid': mermaidIcon,
+  'flowchart': flowchartIcon,
+  'sequence': sequenceIcon,
   'vega-lite': vegaIcon,
-  table: newTableIcon,
-  html: htmlIcon,
-  multiplemath: mathblockIcon,
-  fencecode: codeIcon,
-  indentcode: codeIcon,
-  frontmatter: frontMatterIcon
+  'table': newTableIcon,
+  'html': htmlIcon,
+  'multiplemath': mathblockIcon,
+  'fencecode': codeIcon,
+  'indentcode': codeIcon,
+  'frontmatter': frontMatterIcon
 }
 
 export default function renderIcon (block) {
@@ -40,7 +40,7 @@ export default function renderIcon (block) {
     console.error('Only top most block can render front icon button.')
   }
   const { type, functionType, listType } = block
-  const selector = `a.${CLASS_OR_ID.AG_FRONT_ICON}`
+  const selector = `a.${CLASS_OR_ID['AG_FRONT_ICON']}`
   let icon = null
 
   switch (type) {
@@ -106,7 +106,7 @@ export default function renderIcon (block) {
       break
   }
 
-  const iconVnode = h('i.icon', h('i.icon-inner', {
+  const iconVnode = h('i.icon', h(`i.icon-inner`, {
     style: {
       background: `url(${icon}) no-repeat`,
       'background-size': '100%'

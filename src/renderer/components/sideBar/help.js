@@ -1,24 +1,19 @@
-import FilesIcon from '@/assets/icons/files.svg'
-import SearchIcon from '@/assets/icons/search.svg'
-import TocIcon from '@/assets/icons/toc.svg'
-import SettingIcon from '@/assets/icons/setting.svg'
-
 export const sideBarIcons = [
   {
     name: 'files',
-    icon: FilesIcon
+    icon: 'icon-files'
   }, {
     name: 'search',
-    icon: SearchIcon
+    icon: 'icon-search'
   }, {
     name: 'toc',
-    icon: TocIcon
+    icon: 'icon-header'
   }
 ]
 
 export const sideBarBottomIcons = [
   {
-    name: 'setting',
-    icon: SettingIcon
+    name: 'twitter',
+    icon: 'icon-twitter'
   }
 ]

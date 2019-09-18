@@ -7,7 +7,6 @@ import './index.css'
 
 class QuickInsert extends BaseScrollFloat {
   static pluginName = 'quickInsert'
-
   constructor (muya) {
     const name = 'ag-quick-insert'
     super(muya, name)
@@ -122,8 +121,8 @@ class QuickInsert extends BaseScrollFloat {
   selectItem (item) {
     const { contentState } = this.muya
     this.block.text = ''
-    const { key } = this.block
-    const offset = 0
+    let { key } = this.block
+    let offset = 0
     contentState.cursor = {
       start: { key, offset },
       end: { key, offset }

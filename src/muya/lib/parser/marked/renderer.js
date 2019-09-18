@@ -42,7 +42,7 @@ Renderer.prototype.emoji = function (text, emoji) {
 Renderer.prototype.code = function (code, infostring, escaped, codeBlockStyle) {
   const lang = (infostring || '').match(/\S*/)[0]
   if (this.options.highlight) {
-    const out = this.options.highlight(code, lang)
+    let out = this.options.highlight(code, lang)
     if (out !== null && out !== code) {
       escaped = true
       code = out
@@ -105,7 +105,7 @@ Renderer.prototype.listitem = function (text, checked) {
   // task list
   return '<li class="task-list-item"><input type="checkbox"' +
     (checked ? ' checked=""' : '') +
-    ' disabled=""' +
+    'disabled=""' +
     (this.options.xhtml ? ' /' : '') +
     '> ' +
     text +
@@ -179,7 +179,7 @@ Renderer.prototype.image = function (href, title, text) {
     return text
   }
 
-  let out = '<img src="' + href + '" alt="' + text.replace(/\*/g, '') + '"'
+  let out = '<img src="' + href + '" alt="' + text + '"'
   if (title) {
     out += ' title="' + title + '"'
   }

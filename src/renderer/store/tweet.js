@@ -1,4 +1,4 @@
-import { ipcRenderer } from 'electron'
+import { ipcRenderer } from '@/../main/electron'
 import bus from '../bus'
 
 const state = {}

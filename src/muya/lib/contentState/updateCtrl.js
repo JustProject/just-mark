@@ -3,14 +3,13 @@ import { conflict } from '../utils'
 import { CLASS_OR_ID } from '../config'
 
 const INLINE_UPDATE_FRAGMENTS = [
-  '(?:^|\n) {0,3}([*+-] {1,4})', // Bullet list
-  '(?:^|\n)(\\[[x ]{1}\\] {1,4})', // Task list
-  '(?:^|\n) {0,3}(\\d{1,9}(?:\\.|\\)) {1,4})', // Order list
-  '(?:^|\n) {0,3}(#{1,6})(?=\\s{1,}|$)', // ATX headings
-  '^(?:[\\s\\S]+?)\\n {0,3}(\\={3,}|\\-{3,})(?= {1,}|$)', // Setext headings **match from beginning**
-  '(?:^|\n) {0,3}(>).+', // Block quote
-  '^( {4,})', // Indent code **match from beginning**
-  '(?:^|\n) {0,3}((?:\\* *\\* *\\*|- *- *-|_ *_ *_)[ \\*\\-\\_]*)$' // Thematic break
+  '^([*+-]\\s)', // Bullet list
+  '^(\\[[x\\s]{1}\\]\\s)', // Task list
+  '^(\\d{1,9}(?:\\.|\\))\\s)', // Order list
+  '^\\s{0,3}(#{1,6})(?=\\s{1,}|$)', // ATX headings
+  '^\\s{0,3}(\\={3,}|\\-{3,})(?=\\s{1,}|$)', // Setext headings
+  '^(>).+', // Block quote
+  '^\\s{0,3}((?:\\*\\s*\\*\\s*\\*|-\\s*-\\s*-|_\\s*_\\s*_)[\\s\\*\\-\\_]*)$' // Thematic break
 ]
 
 const INLINE_UPDATE_REG = new RegExp(INLINE_UPDATE_FRAGMENTS.join('|'), 'i')
@@ -21,7 +20,12 @@ const updateCtrl = ContentState => {
     const { checked, id } = checkbox
     const block = this.getBlock(id)
     block.checked = checked
-    checkbox.classList.toggle(CLASS_OR_ID.AG_CHECKBOX_CHECKED)
+    checkbox.classList.toggle(CLASS_OR_ID['AG_CHECKBOX_CHECKED'])
+    // this.render()
+  }
+
+  ContentState.prototype.checkSameLooseType = function (list, isLooseType) {
+    return list.children[0].isLooseListItem === isLooseType
   }
 
   ContentState.prototype.checkSameMarkerOrDelimiter = function (list, markerOrDelimiter) {
@@ -30,16 +34,14 @@ const updateCtrl = ContentState => {
   }
 
   ContentState.prototype.checkNeedRender = function (cursor = this.cursor) {
-    const { labels } = this.stateRender
-    const { start: cStart, end: cEnd, anchor, focus } = cursor
-    const startBlock = this.getBlock(cStart ? cStart.key : anchor.key)
-    const endBlock = this.getBlock(cEnd ? cEnd.key : focus.key)
-    const startOffset = cStart ? cStart.offset : anchor.offset
-    const endOffset = cEnd ? cEnd.offset : focus.offset
-    const NO_NEED_TOKEN_REG = /text|hard_line_break|soft_line_break/
+    const { start: cStart, end: cEnd } = cursor
+    const startBlock = this.getBlock(cStart.key)
+    const endBlock = this.getBlock(cEnd.key)
+    const startOffset = cStart.offset
+    const endOffset = cEnd.offset
 
-    for (const token of tokenizer(startBlock.text, undefined, undefined, labels)) {
-      if (NO_NEED_TOKEN_REG.test(token.type)) continue
+    for (const token of tokenizer(startBlock.text)) {
+      if (token.type === 'text') continue
       const { start, end } = token.range
       const textLen = startBlock.text.length
       if (
@@ -48,8 +50,8 @@ const updateCtrl = ContentState => {
         return true
       }
     }
-    for (const token of tokenizer(endBlock.text, undefined, undefined, labels)) {
-      if (NO_NEED_TOKEN_REG.test(token.type)) continue
+    for (const token of tokenizer(endBlock.text)) {
+      if (token.type === 'text') continue
       const { start, end } = token.range
       const textLen = endBlock.text.length
       if (
@@ -62,35 +64,34 @@ const updateCtrl = ContentState => {
     return false
   }
 
-  /**
-   * block must be span block.
-   */
   ContentState.prototype.checkInlineUpdate = function (block) {
     // table cell can not have blocks in it
     if (/th|td|figure/.test(block.type)) return false
     if (/codeLine|languageInput/.test(block.functionType)) return false
-
+    // line in paragraph can also update to other block. So comment bellow code.
+    // if (block.type === 'span' && block.preSibling) return false
+    const hasPreLine = !!(block.type === 'span' && block.preSibling)
     let line = null
     const { text } = block
     if (block.type === 'span') {
       line = block
       block = this.getParent(block)
     }
-    const listItem = this.getParent(block)
-    const [
-      match, bullet, tasklist, order, atxHeader,
-      setextHeader, blockquote, indentCode, hr
-    ] = text.match(INLINE_UPDATE_REG) || []
+    const parent = this.getParent(block)
+    const [match, bullet, tasklist, order, atxHeader, setextHeader, blockquote, hr] = text.match(INLINE_UPDATE_REG) || []
 
     switch (true) {
-      case (!!hr && new Set(hr.split('').filter(i => /\S/.test(i))).size === 1):
-        return this.updateHr(block, hr, line)
+      case (
+        (!!hr && new Set(hr.split('').filter(i => /\S/.test(i))).size === 1) ||
+        (!!setextHeader && !hasPreLine)
+      ):
+        return this.updateHr(block, hr || setextHeader)
 
       case !!bullet:
         return this.updateList(block, 'bullet', bullet, line)
 
       // only `bullet` list item can be update to `task` list item
-      case !!tasklist && listItem && listItem.listItemType === 'bullet':
+      case !!tasklist && parent && parent.listItemType === 'bullet':
         return this.updateTaskListItem(block, 'tasklist', tasklist)
 
       case !!order:
@@ -99,126 +100,84 @@ const updateCtrl = ContentState => {
       case !!atxHeader:
         return this.updateAtxHeader(block, atxHeader, line)
 
-      case !!setextHeader:
+      case !!setextHeader && hasPreLine:
         return this.updateSetextHeader(block, setextHeader, line)
 
       case !!blockquote:
         return this.updateBlockQuote(block, line)
 
-      case !!indentCode:
-        return this.updateIndentCode(block, line)
-
       case !match:
       default:
-        return this.updateToParagraph(block, line)
+        return this.updateToParagraph(block)
     }
   }
 
-  // Thematic break
-  ContentState.prototype.updateHr = function (block, marker, line) {
-    // If the block is already thematic break, no need to update.
-    if (block.type === 'hr') return null
-    const text = line.text
-    const lines = text.split('\n')
-    const preParagraphLines = []
-    let thematicLine = ''
-    const postParagraphLines = []
-    let thematicLineHasPushed = false
-
-    for (const l of lines) {
-      if (/ {0,3}(?:\\* *\\* *\\*|- *- *-|_ *_ *_)[ \\*\\-\\_]*$/.test(l) && !thematicLineHasPushed) {
-        thematicLine = l
-        thematicLineHasPushed = true
-      } else if (!thematicLineHasPushed) {
-        preParagraphLines.push(l)
-      } else {
-        postParagraphLines.push(l)
-      }
+  // thematic break
+  ContentState.prototype.updateHr = function (block, marker) {
+    if (block.type !== 'hr') {
+      block.type = 'hr'
+      block.text = marker
+      block.children.length = 0
+      const { key } = block
+      this.cursor.start.key = this.cursor.end.key = key
+      return block
     }
-
-    const thematicBlock = this.createBlock('hr')
-    const thematicLineBlock = this.createBlock('span', {
-      text: thematicLine,
-      functionType: 'thematicBreakLine'
-    })
-    this.appendChild(thematicBlock, thematicLineBlock)
-    this.insertBefore(thematicBlock, block)
-    if (preParagraphLines.length) {
-      const preBlock = this.createBlockP(preParagraphLines.join('\n'))
-      this.insertBefore(preBlock, thematicBlock)
-    }
-    if (postParagraphLines.length) {
-      const postBlock = this.createBlockP(postParagraphLines.join('\n'))
-      this.insertAfter(postBlock, thematicBlock)
-    }
-
-    this.removeBlock(block)
-    const { start, end } = this.cursor
-    const key = thematicBlock.children[0].key
-    this.cursor = {
-      start: { key, offset: start.offset },
-      end: { key, offset: end.offset }
-    }
-    return thematicBlock
+    return null
   }
 
   ContentState.prototype.updateList = function (block, type, marker = '', line) {
+    if (block.type === 'span') {
+      block = this.getParent(block)
+    }
+
     const cleanMarker = marker ? marker.trim() : null
-    const { preferLooseListItem } = this.muya.options
+    const { preferLooseListItem } = this
+    const parent = this.getParent(block)
     const wrapperTag = type === 'order' ? 'ol' : 'ul' // `bullet` => `ul` and `order` => `ol`
     const { start, end } = this.cursor
     const startOffset = start.offset
     const endOffset = end.offset
-    const newListItemBlock = this.createBlock('li')
-    const LIST_ITEM_REG = /^ {0,3}(?:[*+-]|\d{1,9}(?:\.|\))) {0,4}/
-    const text = line.text
-    const lines = text.split('\n')
+    const newBlock = this.createBlock('li')
 
-    const preParagraphLines = []
-    let listItemLines = []
-    let isPushedListItemLine = false
-    if (marker) {
-      for (const l of lines) {
-        if (LIST_ITEM_REG.test(l) && !isPushedListItemLine) {
-          listItemLines.push(l.replace(LIST_ITEM_REG, ''))
-          isPushedListItemLine = true
-        } else if (!isPushedListItemLine) {
-          preParagraphLines.push(l)
-        } else {
-          listItemLines.push(l)
-        }
-      }
+    if (/^h\d$/.test(block.type)) {
+      delete block.marker
+      delete block.headingStyle
+      block.type = 'p'
+      block.children = []
+      const line = this.createBlock('span', block.text.substring(marker.length))
+      block.text = ''
+      this.appendChild(block, line)
     } else {
-      // From front menu click.
-      listItemLines = lines
+      line.text = line.text.substring(marker.length)
+      const paragraphBefore = this.createBlock('p')
+      const index = block.children.indexOf(line)
+      if (index !== 0) {
+        const removeCache = []
+        for (const child of block.children) {
+          if (child === line) break
+          removeCache.push(child)
+        }
+        removeCache.forEach(c => {
+          this.removeBlock(c)
+          this.appendChild(paragraphBefore, c)
+        })
+        this.insertBefore(paragraphBefore, block)
+      }
     }
-
-    const pBlock = this.createBlockP(listItemLines.join('\n'))
-    this.insertBefore(pBlock, block)
-
-    if (preParagraphLines.length > 0) {
-      const preParagraphBlock = this.createBlockP(preParagraphLines.join('\n'))
-      this.insertBefore(preParagraphBlock, pBlock)
-    }
-
-    this.removeBlock(block)
-
-    // important!
-    block = pBlock
 
     const preSibling = this.getPreSibling(block)
     const nextSibling = this.getNextSibling(block)
-    newListItemBlock.listItemType = type
-    newListItemBlock.isLooseListItem = preferLooseListItem
+    newBlock.listItemType = type
+    newBlock.isLooseListItem = preferLooseListItem
 
     let bulletMarkerOrDelimiter
     if (type === 'order') {
       bulletMarkerOrDelimiter = (cleanMarker && cleanMarker.length >= 2) ? cleanMarker.slice(-1) : '.'
     } else {
-      const { bulletListMarker } = this.muya.options
+      const { bulletListMarker } = this
       bulletMarkerOrDelimiter = marker ? marker.charAt(0) : bulletListMarker
     }
-    newListItemBlock.bulletMarkerOrDelimiter = bulletMarkerOrDelimiter
+    newBlock.bulletMarkerOrDelimiter = bulletMarkerOrDelimiter
 
     // Special cases for CommonMark 264 and 265: Changing the bullet or ordered list delimiter starts a new list.
     // Same list type or new list
@@ -228,79 +187,86 @@ const updateCtrl = ContentState => {
       nextSibling &&
       this.checkSameMarkerOrDelimiter(nextSibling, bulletMarkerOrDelimiter)
     ) {
-      this.appendChild(preSibling, newListItemBlock)
+      this.appendChild(preSibling, newBlock)
       const partChildren = nextSibling.children.splice(0)
       partChildren.forEach(b => this.appendChild(preSibling, b))
       this.removeBlock(nextSibling)
       this.removeBlock(block)
       const isLooseListItem = preSibling.children.some(c => c.isLooseListItem)
-      preSibling.children.forEach(c => (c.isLooseListItem = isLooseListItem))
+      preSibling.children.forEach(c => c.isLooseListItem = isLooseListItem)
     } else if (
       preSibling &&
       this.checkSameMarkerOrDelimiter(preSibling, bulletMarkerOrDelimiter)
     ) {
-      this.appendChild(preSibling, newListItemBlock)
+      this.appendChild(preSibling, newBlock)
       this.removeBlock(block)
       const isLooseListItem = preSibling.children.some(c => c.isLooseListItem)
-      preSibling.children.forEach(c => (c.isLooseListItem = isLooseListItem))
+      preSibling.children.forEach(c => c.isLooseListItem = isLooseListItem)
     } else if (
       nextSibling &&
       this.checkSameMarkerOrDelimiter(nextSibling, bulletMarkerOrDelimiter)
     ) {
-      this.insertBefore(newListItemBlock, nextSibling.children[0])
+      this.insertBefore(newBlock, nextSibling.children[0])
       this.removeBlock(block)
       const isLooseListItem = nextSibling.children.some(c => c.isLooseListItem)
-      nextSibling.children.forEach(c => (c.isLooseListItem = isLooseListItem))
+      nextSibling.children.forEach(c => c.isLooseListItem = isLooseListItem)
+    } else if (
+      // todo@jocs remove this if in 0.15.xx
+      parent &&
+      parent.listType === type &&
+      this.checkSameLooseType(parent, preferLooseListItem)
+    ) {
+      this.insertBefore(newBlock, block)
+      this.removeBlock(block)
     } else {
       // Create a new list when changing list type, bullet or list delimiter
-      const listBlock = this.createBlock(wrapperTag, {
-        listType: type
-      })
-
+      const listBlock = this.createBlock(wrapperTag)
+      listBlock.listType = type
       if (wrapperTag === 'ol') {
         const start = cleanMarker ? cleanMarker.slice(0, -1) : 1
         listBlock.start = /^\d+$/.test(start) ? start : 1
       }
-
-      this.appendChild(listBlock, newListItemBlock)
+      this.appendChild(listBlock, newBlock)
       this.insertBefore(listBlock, block)
       this.removeBlock(block)
     }
 
     // key point
-    this.appendChild(newListItemBlock, block)
-    const TASK_LIST_REG = /^\[[x ]\] {1,4}/i
+    this.appendChild(newBlock, block)
+    const TASK_LIST_REG = /^\[[x ]\] /i
     const listItemText = block.children[0].text
-    const { key } = block.children[0]
-    const delta = marker.length + preParagraphLines.join('\n').length + 1
-    this.cursor = {
-      start: {
-        key,
-        offset: Math.max(0, startOffset - delta)
-      },
-      end: {
-        key,
-        offset: Math.max(0, endOffset - delta)
-      }
-    }
     if (TASK_LIST_REG.test(listItemText)) {
-      const [,, tasklist,,,,] = listItemText.match(INLINE_UPDATE_REG) || [] // eslint-disable-line comma-spacing
+      const [,,tasklist,,,,] = listItemText.match(INLINE_UPDATE_REG) || []
       return this.updateTaskListItem(block, 'tasklist', tasklist)
     } else {
+      const { key } = block.children[0]
+      this.cursor = {
+        start: {
+          key,
+          offset: Math.max(0, startOffset - marker.length)
+        },
+        end: {
+          key,
+          offset: Math.max(0, endOffset - marker.length)
+        }
+      }
       return block
     }
   }
 
   ContentState.prototype.updateTaskListItem = function (block, type, marker = '') {
-    const { preferLooseListItem } = this.muya.options
+    if (block.type === 'span') {
+      block = this.getParent(block)
+    }
+
+    const { preferLooseListItem } = this
     const parent = this.getParent(block)
     const grandpa = this.getParent(parent)
     const checked = /\[x\]\s/i.test(marker) // use `i` flag to ignore upper case or lower case
-    const checkbox = this.createBlock('input', {
-      checked
-    })
+    const checkbox = this.createBlock('input')
     const { start, end } = this.cursor
 
+    checkbox.checked = checked
     this.insertBefore(checkbox, block)
     block.children[0].text = block.children[0].text.substring(marker.length)
     parent.listItemType = 'task'
@@ -310,21 +276,16 @@ const updateCtrl = ContentState => {
     if (this.isOnlyChild(parent)) {
       grandpa.listType = 'task'
     } else if (this.isFirstChild(parent) || this.isLastChild(parent)) {
-      taskListWrapper = this.createBlock('ul', {
-        listType: 'task'
-      })
-
+      taskListWrapper = this.createBlock('ul')
+      taskListWrapper.listType = 'task'
       this.isFirstChild(parent) ? this.insertBefore(taskListWrapper, grandpa) : this.insertAfter(taskListWrapper, grandpa)
       this.removeBlock(parent)
       this.appendChild(taskListWrapper, parent)
     } else {
-      taskListWrapper = this.createBlock('ul', {
-        listType: 'task'
-      })
-
-      const bulletListWrapper = this.createBlock('ul', {
-        listType: 'bullet'
-      })
+      taskListWrapper = this.createBlock('ul')
+      taskListWrapper.listType = 'task'
+      const bulletListWrapper = this.createBlock('ul')
+      bulletListWrapper.listType = 'bullet'
 
       let preSibling = this.getPreSibling(parent)
       while (preSibling) {
@@ -357,245 +318,144 @@ const updateCtrl = ContentState => {
     return taskListWrapper || grandpa
   }
 
-  // ATX heading doesn't support soft line break and hard line break.
   ContentState.prototype.updateAtxHeader = function (block, header, line) {
     const newType = `h${header.length}`
-    const headingStyle = 'atx'
-    if (block.type === newType && block.headingStyle === headingStyle) {
-      return null
-    }
-    const text = line.text
-    const lines = text.split('\n')
-    const preParagraphLines = []
-    let atxLine = ''
-    const postParagraphLines = []
-    let atxLineHasPushed = false
-
-    for (const l of lines) {
-      if (/^ {0,3}#{1,6}(?=\s{1,}|$)/.test(l) && !atxLineHasPushed) {
-        atxLine = l
-        atxLineHasPushed = true
-      } else if (!atxLineHasPushed) {
-        preParagraphLines.push(l)
-      } else {
-        postParagraphLines.push(l)
+    const text = line ? line.text : block.text
+    if (line) {
+      const index = block.children.indexOf(line)
+      const header = this.createBlock(newType, text)
+      header.headingStyle = 'atx'
+      this.insertBefore(header, block)
+      const paragraphBefore = this.createBlock('p')
+      const paragraphAfter = this.createBlock('p')
+      let i = 0
+      const len = block.children.length
+      for (i; i < len; i++) {
+        const child = block.children[i]
+        if (i < index) {
+          this.appendChild(paragraphBefore, child)
+        } else if (i > index) {
+          this.appendChild(paragraphAfter, child)
+        }
       }
+      if (paragraphBefore.children.length) {
+        this.insertBefore(paragraphBefore, header)
+      }
+      if (paragraphAfter.children.length) {
+        this.insertAfter(paragraphAfter, header)
+      }
+      this.removeBlock(block)
+      this.cursor.start.key = this.cursor.end.key = header.key
+      return header
+    } else {
+      if (block.type === newType && block.headingStyle === 'atx') {
+        return null
+      }
+      block.headingStyle = 'atx'
+      block.type = newType
+      block.text = text
+      block.children.length = 0
+      this.cursor.start.key = this.cursor.end.key = block.key
+      return block
     }
-
-    const atxBlock = this.createBlock(newType, {
-      headingStyle
-    })
-    const atxLineBlock = this.createBlock('span', {
-      text: atxLine,
-      functionType: 'atxLine'
-    })
-    this.appendChild(atxBlock, atxLineBlock)
-    this.insertBefore(atxBlock, block)
-    if (preParagraphLines.length) {
-      const preBlock = this.createBlockP(preParagraphLines.join('\n'))
-      this.insertBefore(preBlock, atxBlock)
-    }
-    if (postParagraphLines.length) {
-      const postBlock = this.createBlockP(postParagraphLines.join('\n'))
-      this.insertAfter(postBlock, atxBlock)
-    }
-
-    this.removeBlock(block)
-
-    const { start, end } = this.cursor
-    const key = atxBlock.children[0].key
-    this.cursor = {
-      start: { key, offset: start.offset },
-      end: { key, offset: end.offset }
-    }
-    return atxBlock
   }
 
   ContentState.prototype.updateSetextHeader = function (block, marker, line) {
     const newType = /=/.test(marker) ? 'h1' : 'h2'
-    const headingStyle = 'setext'
-    if (block.type === newType && block.headingStyle === headingStyle) {
-      return null
+    const header = this.createBlock(newType)
+    header.headingStyle = 'setext'
+    header.marker = marker
+    const index = block.children.indexOf(line)
+    let i = 0
+    let text = ''
+    for (i; i < index; i++) {
+      text += `${block.children[i].text}\n`
     }
-
-    const text = line.text
-    const lines = text.split('\n')
-    const setextLines = []
-    const postParagraphLines = []
-    let setextLineHasPushed = false
-
-    for (const l of lines) {
-      if (/^ {0,3}(?:={3,}|-{3,})(?= {1,}|$)/.test(l) && !setextLineHasPushed) {
-        setextLineHasPushed = true
-      } else if (!setextLineHasPushed) {
-        setextLines.push(l)
-      } else {
-        postParagraphLines.push(l)
+    header.text = text.trimRight()
+    this.insertBefore(header, block)
+    if (line.nextSibling) {
+      const removedCache = []
+      for (const child of block.children) {
+        removedCache.push(child)
+        if (child === line) {
+          break 
+        }
       }
+      removedCache.forEach(child => this.removeBlock(child))
+    } else {
+      this.removeBlock(block)
     }
-
-    const setextBlock = this.createBlock(newType, {
-      headingStyle,
-      marker
-    })
-    const setextLineBlock = this.createBlock('span', {
-      text: setextLines.join('\n'),
-      functionType: 'paragraphContent'
-    })
-    this.appendChild(setextBlock, setextLineBlock)
-    this.insertBefore(setextBlock, block)
-
-    if (postParagraphLines.length) {
-      const postBlock = this.createBlockP(postParagraphLines.join('\n'))
-      this.insertAfter(postBlock, setextBlock)
-    }
-
-    this.removeBlock(block)
-
-    const key = setextBlock.children[0].key
-    const offset = setextBlock.children[0].text.length
-
-    this.cursor = {
-      start: { key, offset },
-      end: { key, offset }
-    }
-
-    return setextBlock
+    this.cursor.start.key = this.cursor.end.key = header.key
+    this.cursor.start.offset = this.cursor.end.offset = header.text.length
+    return header
   }
 
   ContentState.prototype.updateBlockQuote = function (block, line) {
-    const text = line.text
-    const lines = text.split('\n')
-    const preParagraphLines = []
-    const quoteLines = []
-    let quoteLinesHasPushed = false
-
-    for (const l of lines) {
-      if (/^ {0,3}>/.test(l) && !quoteLinesHasPushed) {
-        quoteLinesHasPushed = true
-        quoteLines.push(l.trimStart().substring(1).trimStart())
-      } else if (!quoteLinesHasPushed) {
-        preParagraphLines.push(l)
-      } else {
-        quoteLines.push(l)
+    if (line && !this.isFirstChild(line)) {
+      const paragraphBefore = this.createBlock('p')
+      const removeCache = []
+      for (const child of block.children) {
+        if (child === line) break
+        removeCache.push(child)
       }
+      removeCache.forEach(c => {
+        this.removeBlock(c)
+        this.appendChild(paragraphBefore, c)
+      })
+      this.insertBefore(paragraphBefore, block)
     }
-    let quoteParagraphBlock
-    if (/^h\d/.test(block.type)) {
-      quoteParagraphBlock = this.createBlock(block.type, {
-        headingStyle: block.headingStyle
-      })
-      if (block.headingStyle === 'setext') {
-        quoteParagraphBlock.marker = block.marker
-      }
-      const headerContent = this.createBlock('span', {
-        text: quoteLines.join('\n'),
-        functionType: block.headingStyle === 'setext' ? 'paragraphContent' : 'atxLine'
-      })
-      this.appendChild(quoteParagraphBlock, headerContent)
+    if (!line && /^h\d/.test(block.type)) {
+      block.text = block.text.substring(1).trim()
+      delete block.headingStyle
+      delete block.marker
+      block.type = 'p'
+      block.children = []
+      const line = this.createBlock('span', block.text.substring(1))
+      block.text = ''
+      this.appendChild(block, line)
     } else {
-      quoteParagraphBlock = this.createBlockP(quoteLines.join('\n'))
+      line.text = line.text.substring(1).trim()
     }
-
     const quoteBlock = this.createBlock('blockquote')
-    this.appendChild(quoteBlock, quoteParagraphBlock)
     this.insertBefore(quoteBlock, block)
-
-    if (preParagraphLines.length) {
-      const preParagraphBlock = this.createBlockP(preParagraphLines.join('\n'))
-      this.insertBefore(preParagraphBlock, quoteBlock)
-    }
-
     this.removeBlock(block)
+    this.appendChild(quoteBlock, block)
 
-    const key = quoteParagraphBlock.children[0].key
     const { start, end } = this.cursor
     this.cursor = {
-      start: { key, offset: start.offset - 1 },
-      end: { key, offset: end.offset - 1 }
+      start: {
+        key: start.key,
+        offset: start.offset - 1
+      },
+      end: {
+        key: end.key,
+        offset: end.offset - 1
+      }
     }
-
     return quoteBlock
   }
 
-  ContentState.prototype.updateIndentCode = function (block, line) {
-    const codeBlock = this.createBlock('code', {
-      lang: ''
-    })
-    const inputBlock = this.createBlock('span', {
-      functionType: 'languageInput'
-    })
-    const preBlock = this.createBlock('pre', {
-      functionType: 'indentcode',
-      lang: ''
-    })
-
-    const text = line ? line.text : block.text
-
-    const lines = text.split('\n')
-    const codeLines = []
-    const paragraphLines = []
-    let canBeCodeLine = true
-
-    for (const l of lines) {
-      if (/^ {4,}/.test(l) && canBeCodeLine) {
-        codeLines.push(l.replace(/^ {4}/, ''))
-      } else {
-        canBeCodeLine = false
-        paragraphLines.push(l)
-      }
-    }
-    codeLines.forEach(text => {
-      const codeLine = this.createBlock('span', {
-        text,
-        functionType: 'codeLine',
-        lang: ''
-      })
-      this.appendChild(codeBlock, codeLine)
-    })
-
-    this.appendChild(preBlock, inputBlock)
-    this.appendChild(preBlock, codeBlock)
-    this.insertBefore(preBlock, block)
-
-    if (paragraphLines.length > 0 && line) {
-      const newLine = this.createBlock('span', {
-        text: paragraphLines.join('\n')
-      })
-      this.insertBefore(newLine, line)
-      this.removeBlock(line)
-    } else {
-      this.removeBlock(block)
-    }
-
-    const key = codeBlock.children[0].key
-    const { start, end } = this.cursor
-    this.cursor = {
-      start: { key, offset: start.offset - 4 },
-      end: { key, offset: end.offset - 4 }
-    }
-    return preBlock
-  }
-
-  ContentState.prototype.updateToParagraph = function (block, line) {
+  ContentState.prototype.updateToParagraph = function (block) {
     if (/^h\d$/.test(block.type) && block.headingStyle === 'setext') {
       return null
     }
-
     const newType = 'p'
     if (block.type !== newType) {
-      const newBlock = this.createBlockP(line.text)
-      this.insertBefore(newBlock, block)
-      this.removeBlock(block)
-      const { start, end } = this.cursor
-      const key = newBlock.children[0].key
-      this.cursor = {
-        start: { key, offset: start.offset },
-        end: { key, offset: end.offset }
-      }
+      block.type = newType // updateP
+      const newLine = this.createBlock('span', block.text)
+      this.appendChild(block, newLine)
+      block.text = ''
+      this.cursor.start.key = this.cursor.end.key = newLine.key
       return block
     }
     return null
+  }
+
+  ContentState.prototype.updateCodeBlocks = function (block) {
+    const codeBlock = this.getParent(block)
+    const preBlock = this.getParent(codeBlock)
+    const code = codeBlock.children.map(line => line.text).join('\n')
+    this.codeBlocks.set(preBlock.key, code)
   }
 }
 

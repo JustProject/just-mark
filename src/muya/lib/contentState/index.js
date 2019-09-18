@@ -18,15 +18,13 @@ import tabCtrl from './tabCtrl'
 import formatCtrl from './formatCtrl'
 import searchCtrl from './searchCtrl'
 import containerCtrl from './containerCtrl'
+import imagePathCtrl from './imagePathCtrl'
 import htmlBlockCtrl from './htmlBlock'
 import clickCtrl from './clickCtrl'
 import inputCtrl from './inputCtrl'
 import tocCtrl from './tocCtrl'
 import emojiCtrl from './emojiCtrl'
-import imageCtrl from './imageCtrl'
-import dragDropCtrl from './dragDropCtrl'
 import importMarkdown from '../utils/importMarkdown'
-import Cursor from '../selection/cursor'
 
 const prototypes = [
   tabCtrl,
@@ -44,13 +42,12 @@ const prototypes = [
   formatCtrl,
   searchCtrl,
   containerCtrl,
+  imagePathCtrl,
   htmlBlockCtrl,
   clickCtrl,
   inputCtrl,
   tocCtrl,
   emojiCtrl,
-  imageCtrl,
-  dragDropCtrl,
   importMarkdown
 ]
 
@@ -63,14 +60,13 @@ class ContentState {
 
     // Use to cache the keys which you don't want to remove.
     this.exemption = new Set()
-    this.blocks = [this.createBlockP()]
+    this.blocks = [ this.createBlockP() ]
     this.stateRender = new StateRender(muya)
-    this.renderRange = [null, null]
+    this.codeBlocks = new Map()
+    this.renderRange = [ null, null ]
     this.currentCursor = null
     // you'll select the outmost block of current cursor when you click the front icon.
     this.selectedBlock = null
-    this._selectedImage = null
-    this.dropAnchor = null
     this.prevCursor = null
     this.historyTimer = null
     this.history = new History(this)
@@ -80,26 +76,7 @@ class ContentState {
     this.init()
   }
 
-  set selectedImage (image) {
-    const oldSelectedImage = this._selectedImage
-    // if there is no selected image, remove selected status of current selected image.
-    if (!image && oldSelectedImage) {
-      const selectedImages = this.muya.container.querySelectorAll('.ag-inline-image-selected')
-      for (const img of selectedImages) {
-        img.classList.remove('ag-inline-image-selected')
-      }
-    }
-    this._selectedImage = image
-  }
-
-  get selectedImage () {
-    return this._selectedImage
-  }
-
   set cursor (cursor) {
-    if (!(cursor instanceof Cursor)) {
-      cursor = new Cursor(cursor)
-    }
     const handler = () => {
       const { blocks, renderRange, currentCursor } = this
       this.history.push({
@@ -124,6 +101,8 @@ class ContentState {
         if (this.historyTimer) clearTimeout(this.historyTimer)
         this.historyTimer = setTimeout(handler, 2000)
       }
+    } else {
+      cursor.noHistory && delete cursor.noHistory
     }
   }
 
@@ -166,34 +145,25 @@ class ContentState {
     const startOutMostBlock = this.findOutMostBlock(startBlock)
     const endOutMostBlock = this.findOutMostBlock(endBlock)
 
-    this.renderRange = [startOutMostBlock.preSibling, endOutMostBlock.nextSibling]
-  }
-
-  postRender () {
-    // do nothing.
+    this.renderRange = [ startOutMostBlock.preSibling, endOutMostBlock.nextSibling ]
   }
 
   render (isRenderCursor = true) {
-    const { blocks, searchMatches: { matches, index } } = this
+    const { blocks, cursor, searchMatches: { matches, index }, selectedBlock } = this
     const activeBlocks = this.getActiveBlocks()
     matches.forEach((m, i) => {
       m.active = i === index
     })
     this.setNextRenderRange()
     this.stateRender.collectLabels(blocks)
-    this.stateRender.render(blocks, activeBlocks, matches)
-    if (isRenderCursor) {
-      this.setCursor()
-    } else {
-      this.muya.blur()
-    }
-    this.postRender()
+    this.stateRender.render(blocks, cursor, activeBlocks, matches, selectedBlock)
+    if (isRenderCursor) this.setCursor()
   }
 
-  partialRender (isRenderCursor = true) {
-    const { blocks, searchMatches: { matches, index } } = this
+  partialRender () {
+    const { blocks, cursor, searchMatches: { matches, index }, selectedBlock } = this
     const activeBlocks = this.getActiveBlocks()
-    const [startKey, endKey] = this.renderRange
+    const [ startKey, endKey ] = this.renderRange
     matches.forEach((m, i) => {
       m.active = i === index
     })
@@ -203,62 +173,32 @@ class ContentState {
 
     this.setNextRenderRange()
     this.stateRender.collectLabels(blocks)
-    this.stateRender.partialRender(needRenderBlocks, activeBlocks, matches, startKey, endKey)
-    if (isRenderCursor) {
-      this.setCursor()
-    } else {
-      this.muya.blur()
-    }
-    this.postRender()
-  }
-
-  singleRender (block, isRenderCursor = true) {
-    const { blocks, searchMatches: { matches, index } } = this
-    const activeBlocks = this.getActiveBlocks()
-    matches.forEach((m, i) => {
-      m.active = i === index
-    })
-    this.setNextRenderRange()
-    this.stateRender.collectLabels(blocks)
-    this.stateRender.singleRender(block, activeBlocks, matches)
-    if (isRenderCursor) {
-      this.setCursor()
-    } else {
-      this.muya.blur()
-    }
-    this.postRender()
+    this.stateRender.partialRender(needRenderBlocks, cursor, activeBlocks, matches, startKey, endKey, selectedBlock)
+    this.setCursor()
   }
 
   /**
-   * A block in Mark Text present a paragraph(block syntax in GFM) or a line in paragraph.
-   * a `span` block must in a `p block` or `pre block` and `p block`'s children must be `span` blocks.
+   * A block in Aganippe present a paragraph(block syntax in GFM) or a line in paragraph.
+   * a line block must in a `p block` or `pre block(frontmatter)` and `p block`'s children must be line blocks.
    */
-  createBlock (type = 'span', extras = {}) {
+  createBlock (type = 'span', text = '', editable = true) { // span type means it is a line block.
     const key = getUniqueId()
-    const blockData = {
+    return {
       key,
-      text: '',
       type,
-      editable: true,
+      text,
+      editable,
       parent: null,
       preSibling: null,
       nextSibling: null,
       children: []
     }
-
-    // give span block a default functionType `paragraphContent`
-    if (type === 'span' && !extras.functionType) {
-      blockData.functionType = 'paragraphContent'
-    }
-
-    Object.assign(blockData, extras)
-    return blockData
   }
 
   createBlockP (text = '') {
     const pBlock = this.createBlock('p')
-    const contentBlock = this.createBlock('span', { text })
-    this.appendChild(pBlock, contentBlock)
+    const lineBlock = this.createBlock('span', text)
+    this.appendChild(pBlock, lineBlock)
     return pBlock
   }
 
@@ -326,7 +266,6 @@ class ContentState {
     }
     return null
   }
-
   // return block and its parents
   getParents (block) {
     const result = []
@@ -400,7 +339,6 @@ class ContentState {
       this.removeBlock(block)
     }
   }
-
   // help func in removeBlocks
   findFigure (block) {
     if (block.type === 'figure') {
@@ -492,7 +430,7 @@ class ContentState {
   }
 
   getActiveBlocks () {
-    const result = []
+    let result = []
     let block = this.getBlock(this.cursor.start.key)
     if (block) result.push(block)
     while (block && block.parent) {
@@ -676,8 +614,9 @@ class ContentState {
     const { fontSize, lineHeight } = this
     const { start } = this.cursor
     const block = this.getBlock(start.key)
-    const { x, y, width } = selection.getCursorCoords()
+    const { x, y } = selection.getCursorCoords()
     const height = fontSize * lineHeight
+    const width = 0
     const bottom = y + height
     const right = x + width
     const left = x
@@ -690,10 +629,6 @@ class ContentState {
       clientHeight: height,
       id: block ? block.key : null
     }
-  }
-
-  getFirstBlock () {
-    return this.firstInDescendant(this.blocks[0])
   }
 
   getLastBlock () {

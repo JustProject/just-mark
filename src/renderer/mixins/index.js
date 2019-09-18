@@ -1,6 +1,5 @@
-import { ipcRenderer } from 'electron'
-// import { isSamePathSync } from 'common/filesystem/paths'
-import bus from '../bus'
+import { ipcRenderer } from '@/../main/electron'
+import { getFileStateFromData } from '../store/help.js'
 
 export const tabsMixins = {
   methods: {
@@ -12,20 +11,9 @@ export const tabsMixins = {
     removeFileInTab (file) {
       const { isSaved } = file
       if (isSaved) {
-        this.$store.dispatch('FORCE_CLOSE_TAB', file)
+        this.$store.dispatch('REMOVE_FILE_IN_TABS', file)
       } else {
-        this.$store.dispatch('CLOSE_UNSAVED_TAB', file)
-      }
-    }
-  }
-}
-
-export const loadingPageMixins = {
-  methods: {
-    hideLoadingPage () {
-      const loadingPage = document.querySelector('#loading-page')
-      if (loadingPage) {
-        loadingPage.remove()
+        this.$store.dispatch('CLOSE_SINGLE_FILE', file)
       }
     }
   }
@@ -33,50 +21,30 @@ export const loadingPageMixins = {
 
 export const fileMixins = {
   methods: {
-    handleSearchResultClick (searchMatch) {
-      const { range } = searchMatch
-      const { filePath } = this.searchResult
-
-      // const openedTab = this.tabs.find(file => isSamePathSync(file.pathname, filePath))
-      const openedTab = true
-      const cursor = {
-        isCollapsed: range[0][0] !== range[1][0],
-        anchor: {
-          line: range[0][0],
-          ch: range[0][1]
-        },
-        focus: {
-          line: range[1][0],
-          ch: range[1][1]
-        }
-      }
-
-      if (openedTab) {
-        openedTab.cursor = cursor
-        if (this.currentFile !== openedTab) {
-          this.$store.dispatch('UPDATE_CURRENT_FILE', openedTab)
-        } else {
-          const { id, markdown, cursor, history } = this.currentFile
-          bus.$emit('file-changed', { id, markdown, cursor, renderCursor: true, history })
-        }
-      } else {
-        ipcRenderer.send('mt::open-file', filePath, {
-          cursor
-        })
-      }
-    },
     handleFileClick () {
-      const { isMarkdown, pathname } = this.file
-      if (!isMarkdown) return
-      const openedTab = true
-      // const openedTab = this.tabs.find(file => isSamePathSync(file.pathname, pathname))
-      if (openedTab) {
-        if (this.currentFile === openedTab) {
-          return
-        }
-        this.$store.dispatch('UPDATE_CURRENT_FILE', openedTab)
-      } else {
-        ipcRenderer.send('mt::open-file', pathname, {})
+      const { data, isMarkdown, pathname } = this.file
+      if (!isMarkdown || this.currentFile.pathname === pathname) return
+      const { isMixedLineEndings, filename, lineEnding } = data
+      const isOpened = this.tabs.filter(file => file.pathname === pathname)[0]
+
+      const fileState = isOpened || getFileStateFromData(data)
+      this.$store.dispatch('UPDATE_CURRENT_FILE', fileState)
+      // ask main process to watch this file changes
+      this.$store.dispatch('ASK_FILE_WATCH', {
+        pathname,
+        watch: true
+      })
+
+      ipcRenderer.send("AGANI::add-recently-used-document", pathname)
+
+      if (isMixedLineEndings && !isOpened) {
+        this.$notify({
+          title: 'Line Ending',
+          message: `${filename} has mixed line endings which are automatically normalized to ${lineEnding.toUpperCase()}.`,
+          type: 'primary',
+          time: 20000,
+          showConfirm: false
+        })
       }
     }
   }

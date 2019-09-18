@@ -1,76 +1,31 @@
-import { ipcRenderer } from 'electron'
+import { ipcRenderer } from '@/../main/electron'
+import { getOptionsFromState } from './help'
 
 // user preference
 const state = {
-  autoSave: false,
-  autoSaveDelay: 5000,
-  titleBarStyle: 'custom',
-  openFilesInNewWindow: false,
-  openFolderInNewWindow: false,
-  hideScrollbar: false,
-  aidou: true,
-  fileSortBy: 'created',
-  startUpAction: 'lastState',
-  defaultDirectoryToOpen: '',
-  language: 'en',
-
+  theme: 'light',
   editorFontFamily: 'Open Sans',
-  fontSize: 16,
-  lineHeight: 1.6,
-  codeFontSize: 14,
+  fontSize: '16px',
   codeFontFamily: 'DejaVu Sans Mono',
-  editorLineWidth: '',
-
+  codeFontSize: '14px',
+  lineHeight: 1.6,
+  lightColor: '#303133', // color in light theme
+  darkColor: 'rgb(217, 217, 217)', // color in dark theme
+  autoSave: false,
+  preferLooseListItem: true, // prefer loose or tight list items
+  bulletListMarker: '-',
   autoPairBracket: true,
   autoPairMarkdownSyntax: true,
   autoPairQuote: true,
-  endOfLine: 'default',
-  textDirection: 'ltr',
-  hideQuickInsertHint: false,
-  imageInsertAction: 'folder',
-
-  preferLooseListItem: true,
-  bulletListMarker: '-',
-  orderListDelimiter: '.',
-  preferHeadingStyle: 'atx',
   tabSize: 4,
+  // bullet/list marker width + listIndentation, tab or Daring Fireball Markdown (4 spaces) --> list indentation
   listIndentation: 1,
-
-  theme: 'light',
-
-  // Default values that are overwritten with the entries below.
-  sideBarVisibility: false,
-  tabBarVisibility: false,
-  sourceCodeModeEnabled: false,
-
-  searchExclusions: [],
-  searchMaxFileSize: '',
-  searchIncludeHidden: false,
-  searchNoIgnore: false,
-  searchFollowSymlinks: true,
-
-  watcherUsePolling: false,
-
-  // --------------------------------------------------------------------------
-
-  // Edit modes of the current window (not part of persistent settings)
+  hideQuickInsertHint: false,
+  titleBarStyle: 'csd',
+  // edit modes (they are not in preference.md, but still put them here)
   typewriter: false, // typewriter mode
   focus: false, // focus mode
-  sourceCode: false, // source code mode
-
-  // user configration
-  imageFolderPath: '',
-  webImages: [],
-  cloudImages: [],
-  currentUploader: 'none',
-  githubToken: '',
-  imageBed: {
-    github: {
-      owner: '',
-      repo: '',
-      branch: ''
-    }
-  }
+  sourceCode: false // source code mode
 }
 
 const getters = {}
@@ -90,11 +45,20 @@ const mutations = {
 
 const actions = {
   ASK_FOR_USER_PREFERENCE ({ commit, state, rootState }) {
-    ipcRenderer.send('mt::ask-for-user-preference')
-    ipcRenderer.send('mt::ask-for-user-data')
+    ipcRenderer.send('AGANI::ask-for-user-preference')
+    ipcRenderer.on('AGANI::user-preference', (e, preference) => {
+      const { autoSave } = preference
+      commit('SET_USER_PREFERENCE', preference)
 
-    ipcRenderer.on('AGANI::user-preference', (e, preferences) => {
-      commit('SET_USER_PREFERENCE', preferences)
+      // handle autoSave @todo
+      if (autoSave) {
+        const { pathname, markdown } = state
+        const options = getOptionsFromState(rootState.editor)
+        if (pathname) {
+          commit('SET_SAVE_STATUS', true)
+          ipcRenderer.send('AGANI::response-file-save', { pathname, markdown, options })
+        }
+      }
     })
   },
 
@@ -110,21 +74,10 @@ const actions = {
     })
   },
 
-  SET_SINGLE_PREFERENCE ({ commit }, { type, value }) {
-    // save to electron-store
-    ipcRenderer.send('mt::set-user-preference', { [type]: value })
-  },
-
-  SET_USER_DATA ({ commit }, { type, value }) {
-    ipcRenderer.send('mt::set-user-data', { [type]: value })
-  },
-
-  SET_IMAGE_FOLDER_PATH ({ commit }) {
-    ipcRenderer.send('mt::ask-for-modify-image-folder-path')
-  },
-
-  SELECT_DEFAULT_DIRECTORY_TO_OPEN ({ commit }) {
-    ipcRenderer.send('mt::select-default-directory-to-open')
+  CHANGE_FONT ({ commit }, { type, value }) {
+    commit('SET_USER_PREFERENCE', { [type]: value })
+    // save to preference.md
+    ipcRenderer.send('AGANI::set-user-preference', { [type]: value })
   }
 }
 

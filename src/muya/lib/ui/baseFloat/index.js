@@ -4,7 +4,7 @@ import { noop } from '../../utils'
 import { EVENT_KEYS } from '../../config'
 import './index.css'
 
-const defaultOptions = () => ({
+const defaultOptions = {
   placement: 'bottom-start',
   modifiers: {
     offset: {
@@ -12,13 +12,13 @@ const defaultOptions = () => ({
     }
   },
   showArrow: true
-})
+}
 
 class BaseFloat {
   constructor (muya, name, options = {}) {
     this.name = name
     this.muya = muya
-    this.options = Object.assign({}, defaultOptions(), options)
+    this.options = Object.assign({}, defaultOptions, options)
     this.status = false
     this.floatBox = null
     this.container = null
@@ -53,7 +53,7 @@ class BaseFloat {
     // use polyfill
     erd.listenTo(container, ele => {
       const { offsetWidth, offsetHeight } = ele
-      Object.assign(floatBox.style, { width: `${offsetWidth}px`, height: `${offsetHeight}px` })
+      Object.assign(floatBox.style, { width: `${offsetWidth + 2}px`, height: `${offsetHeight + 2}px` })
       this.popper && this.popper.update()
     })
 
@@ -105,7 +105,7 @@ class BaseFloat {
       this.popper.destroy()
     }
     this.cb = noop
-    eventCenter.dispatch('muya-float', this, false)
+    eventCenter.dispatch('muya-float', this.name, false)
     this.lastScrollTop = null
   }
 
@@ -122,7 +122,7 @@ class BaseFloat {
       modifiers
     })
     this.status = true
-    eventCenter.dispatch('muya-float', this, true)
+    eventCenter.dispatch('muya-float', this.name, true)
   }
 
   destroy () {

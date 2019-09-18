@@ -1,7 +1,6 @@
 import { beginRules, inlineRules } from './rules'
 import { isLengthEven, union } from '../utils'
-import { findClosingBracket } from './marked/utils'
-import { getAttributes, parseSrcAndTitle, validateEmphasize, lowerPriority } from './utils'
+import { punctuation, WHITELIST_ATTRIBUTES } from '../config'
 
 // const CAN_NEST_RULES = ['strong', 'em', 'link', 'del', 'a_link', 'reference_link', 'html_tag']
 // disallowed html tags in https://github.github.com/gfm/#raw-html
@@ -9,27 +8,101 @@ const disallowedHtmlTag = /(?:title|textarea|style|xmp|iframe|noembed|noframes|s
 const validateRules = Object.assign({}, inlineRules)
 delete validateRules.em
 delete validateRules.strong
-delete validateRules.tail_header
-delete validateRules.backlash
+delete validateRules['tail_header']
+delete validateRules['backlash']
 
-const correctUrl = token => {
-  if (token && typeof token[4] === 'string') {
-    const lastParenIndex = findClosingBracket(token[4], '()')
+const validWidthAndHeight = value => {
+  if (!/^\d{1,}$/.test(value)) return ''
+  value = parseInt(value)
+  return value >= 0 ? value : ''
+}
 
-    if (lastParenIndex > -1) {
-      const len = token[0].length - (token[4].length - lastParenIndex)
-      token[0] = token[0].substring(0, len)
-      const originSrc = token[4].substring(0, lastParenIndex)
-      const match = /(\\+)$/.exec(originSrc)
-      if (match) {
-        token[4] = originSrc.substring(0, originSrc.length - match[1].length)
-        token[5] = match[1]
-      } else {
-        token[4] = originSrc
-        token[5] = ''
+const getAttributes = html => {
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+  const target = doc.querySelector('body').firstElementChild
+  if (!target) return null
+  const attrs = {}
+  for (const attr of target.getAttributeNames()) {
+    if (!WHITELIST_ATTRIBUTES.includes(attr)) continue
+    if (/width|height/.test(attr)) {
+      attrs[attr] = validWidthAndHeight(target.getAttribute(attr))
+    } else {
+      attrs[attr] = target.getAttribute(attr)
+    }
+  }
+
+  return attrs
+}
+
+const parseSrcAndTitle = (text = '') => {
+  const parts = text.split(/\s+/)
+  const src = parts[0]
+  const rawTitle = text.substring(src.length).trim()
+  const TITLE_REG = /^('|")(.*?)\1$/ // we only support use `'` and `"` to indicate a title now.
+  let title = ''
+  if (rawTitle && TITLE_REG.test(rawTitle)) {
+    title = rawTitle.replace(TITLE_REG, '$2')
+  }
+  return { src, title }
+}
+
+const lowerPriority = (src, offset) => {
+  let i
+  for (i = 0; i < offset; i++) {
+    const text = src.substring(i)
+    for (const rule of Object.keys(validateRules)) {
+      const to = validateRules[rule].exec(text)
+      if (to && to[0].length > offset - i) {
+        return false
       }
     }
   }
+  return true
+}
+
+const validateEmphasize = (src, offset, marker, pending) => {
+  /**
+   * Intraword emphasis is disallowed for _
+   */
+  const lastChar = pending.charAt(pending.length - 1)
+  const followedChar = src[offset]
+  const ALPHA_REG = /[a-zA-Z]{1}/
+  if (/_/.test(marker)) {
+    if (ALPHA_REG.test(lastChar)) return false
+    if (followedChar && ALPHA_REG.test(followedChar)) return false
+  }
+  /**
+   * 1. This is not emphasis, because the second * is preceded by punctuation and followed by an alphanumeric
+   * (hence it is not part of a right-flanking delimiter run:
+   * 2. This is not emphasis, because the opening * is preceded by an alphanumeric and followed by punctuation,
+   * and hence not part of a left-flanking delimiter run:
+   */
+  if (ALPHA_REG.test(lastChar) && punctuation.indexOf(src[marker.length]) > -1) {
+    return false
+  }
+
+  if (followedChar && ALPHA_REG.test(followedChar) && punctuation.indexOf(src[offset - marker.length - 1]) > -1) {
+    return false
+  }
+  /**
+   * When there are two potential emphasis or strong emphasis spans with the same closing delimiter,
+   * the shorter one (the one that opens later) takes precedence. Thus, for example, **foo **bar baz**
+   * is parsed as **foo <strong>bar baz</strong> rather than <strong>foo **bar baz</strong>.
+   */
+  const mLen = marker.length
+  const emphasizeText = src.substring(mLen, offset - mLen)
+  const index = emphasizeText.indexOf(marker)
+  if (index > -1 && /\S/.test(emphasizeText[index + mLen])) {
+    return false
+  }
+  /**
+   * Inline code spans, links, images, and HTML tags group more tightly than emphasis.
+   * So, when there is a choice between an interpretation that contains one of these elements
+   * and one that does not, the former always wins. Thus, for example, *[foo*](bar) is parsed
+   * as *<a href="bar">foo*</a> rather than as <em>[foo</em>](bar).
+   */
+  return lowerPriority(src, offset)
 }
 
 const tokenizerFac = (src, beginRules, inlineRules, pos = 0, top, labels) => {
@@ -79,7 +152,7 @@ const tokenizerFac = (src, beginRules, inlineRules, pos = 0, top, labels) => {
         break
       }
     }
-    const def = beginRules.reference_definition.exec(src)
+    const def = beginRules['reference_definition'].exec(src)
     if (def && isLengthEven(def[3])) {
       const token = {
         type: 'reference_definition',
@@ -135,7 +208,7 @@ const tokenizerFac = (src, beginRules, inlineRules, pos = 0, top, labels) => {
     for (const rule of emRules) {
       const to = inlineRules[rule].exec(src)
       if (to && isLengthEven(to[3])) {
-        const isValid = validateEmphasize(src, to[0].length, to[1], pending, validateRules)
+        const isValid = validateEmphasize(src, to[0].length, to[1], pending)
         if (isValid) {
           inChunk = true
           pushPending()
@@ -166,7 +239,7 @@ const tokenizerFac = (src, beginRules, inlineRules, pos = 0, top, labels) => {
     for (const rule of chunks) {
       const to = inlineRules[rule].exec(src)
       if (to && isLengthEven(to[3])) {
-        if (rule === 'emoji' && !lowerPriority(src, to[0].length, validateRules)) break
+        if (rule === 'emoji' && !lowerPriority(src, to[0].length)) break
         inChunk = true
         pushPending()
         const range = {
@@ -203,7 +276,6 @@ const tokenizerFac = (src, beginRules, inlineRules, pos = 0, top, labels) => {
     if (inChunk) continue
     // image
     const imageTo = inlineRules.image.exec(src)
-    correctUrl(imageTo)
     if (imageTo && isLengthEven(imageTo[3]) && isLengthEven(imageTo[5])) {
       const { src: imageSrc, title } = parseSrcAndTitle(imageTo[4])
       pushPending()
@@ -212,12 +284,6 @@ const tokenizerFac = (src, beginRules, inlineRules, pos = 0, top, labels) => {
         raw: imageTo[0],
         marker: imageTo[1],
         srcAndTitle: imageTo[4],
-        // This `attrs` used for render image.
-        attrs: {
-          src: imageSrc + encodeURI(imageTo[5]),
-          title,
-          alt: imageTo[2] + encodeURI(imageTo[3])
-        },
         src: imageSrc,
         title,
         parent: tokens,
@@ -225,7 +291,9 @@ const tokenizerFac = (src, beginRules, inlineRules, pos = 0, top, labels) => {
           start: pos,
           end: pos + imageTo[0].length
         },
-        alt: imageTo[2],
+        // An image description has inline elements as its contents.
+        // When an image is rendered to HTML, this is standardly used as the image’s alt attribute.
+        alt: imageTo[2].replace(/[`*{}[\]()#+\-.!_>~:|<>$]/g, ''),
         backlash: {
           first: imageTo[3],
           second: imageTo[5]
@@ -237,7 +305,6 @@ const tokenizerFac = (src, beginRules, inlineRules, pos = 0, top, labels) => {
     }
     // link
     const linkTo = inlineRules.link.exec(src)
-    correctUrl(linkTo)
     if (linkTo && isLengthEven(linkTo[3]) && isLengthEven(linkTo[5])) {
       const { src: href, title } = parseSrcAndTitle(linkTo[4])
       pushPending()
@@ -266,7 +333,7 @@ const tokenizerFac = (src, beginRules, inlineRules, pos = 0, top, labels) => {
       continue
     }
 
-    const rLinkTo = inlineRules.reference_link.exec(src)
+    const rLinkTo = inlineRules['reference_link'].exec(src)
     if (rLinkTo && labels.has(rLinkTo[3] || rLinkTo[1]) && isLengthEven(rLinkTo[2]) && isLengthEven(rLinkTo[4])) {
       pushPending()
       tokens.push({
@@ -292,7 +359,7 @@ const tokenizerFac = (src, beginRules, inlineRules, pos = 0, top, labels) => {
       continue
     }
 
-    const rImageTo = inlineRules.reference_image.exec(src)
+    const rImageTo = inlineRules['reference_image'].exec(src)
     if (rImageTo && labels.has(rImageTo[3] || rImageTo[1]) && isLengthEven(rImageTo[2]) && isLengthEven(rImageTo[4])) {
       pushPending()
 
@@ -319,7 +386,7 @@ const tokenizerFac = (src, beginRules, inlineRules, pos = 0, top, labels) => {
     }
 
     // html escape
-    const htmlEscapeTo = inlineRules.html_escape.exec(src)
+    const htmlEscapeTo = inlineRules['html_escape'].exec(src)
     if (htmlEscapeTo) {
       const len = htmlEscapeTo[0].length
       pushPending()
@@ -339,7 +406,7 @@ const tokenizerFac = (src, beginRules, inlineRules, pos = 0, top, labels) => {
     }
 
     // html-tag
-    const htmlTo = inlineRules.html_tag.exec(src)
+    const htmlTo = inlineRules['html_tag'].exec(src)
     let attrs
     // handle comment
     if (htmlTo && htmlTo[1] && !htmlTo[3]) {
@@ -388,7 +455,7 @@ const tokenizerFac = (src, beginRules, inlineRules, pos = 0, top, labels) => {
     }
 
     // auto link
-    const autoLTo = inlineRules.auto_link.exec(src)
+    const autoLTo = inlineRules['auto_link'].exec(src)
     if (autoLTo) {
       pushPending()
       tokens.push({
@@ -405,37 +472,15 @@ const tokenizerFac = (src, beginRules, inlineRules, pos = 0, top, labels) => {
       pos = pos + autoLTo[0].length
       continue
     }
-    // soft line break
-    const softTo = inlineRules.soft_line_break.exec(src)
-    if (softTo) {
-      const len = softTo[0].length
-      pushPending()
-      tokens.push({
-        type: 'soft_line_break',
-        raw: softTo[0],
-        lineBreak: softTo[1],
-        isAtEnd: softTo.input.length === softTo[0].length,
-        parent: tokens,
-        range: {
-          start: pos,
-          end: pos + len
-        }
-      })
-      src = src.substring(len)
-      pos += len
-      continue
-    }
     // hard line break
-    const hardTo = inlineRules.hard_line_break.exec(src)
-    if (hardTo) {
+    const hardTo = inlineRules['hard_line_break'].exec(src)
+    if (hardTo && top) {
       const len = hardTo[0].length
       pushPending()
       tokens.push({
         type: 'hard_line_break',
         raw: hardTo[0],
-        spaces: hardTo[1], // The space in hard line break
-        lineBreak: hardTo[2], // \n
-        isAtEnd: hardTo.input.length === hardTo[0].length,
+        spaces: hardTo[1],
         parent: tokens,
         range: {
           start: pos,
@@ -448,7 +493,7 @@ const tokenizerFac = (src, beginRules, inlineRules, pos = 0, top, labels) => {
     }
 
     // tail header
-    const tailTo = inlineRules.tail_header.exec(src)
+    const tailTo = inlineRules['tail_header'].exec(src)
     if (tailTo && top) {
       pushPending()
       tokens.push({
@@ -499,7 +544,6 @@ export const tokenizer = (src, highlights = [], hasBeginRules = true, labels = n
   if (highlights.length) {
     postTokenizer(tokens)
   }
-
   return tokens
 }
 

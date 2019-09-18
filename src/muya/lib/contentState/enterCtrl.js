@@ -11,7 +11,6 @@ const getIndentSpace = text => {
 }
 
 const enterCtrl = ContentState => {
-  // TODO@jocs this function need opti.
   ContentState.prototype.chopBlockByCursor = function (block, key, offset) {
     const newBlock = this.createBlock('p')
     const { children } = block
@@ -29,7 +28,7 @@ const enterCtrl = ContentState => {
       this.prependChild(newBlock, activeLine)
     } else if (offset < text.length) {
       activeLine.text = text.substring(0, offset)
-      const newLine = this.createBlock('span', { text: text.substring(offset) })
+      const newLine = this.createBlock('span', text.substring(offset))
       this.prependChild(newBlock, newLine)
     }
     return newBlock
@@ -144,40 +143,12 @@ const enterCtrl = ContentState => {
     return this.partialRender()
   }
 
-  ContentState.prototype.docEnterHandler = function (event) {
-    const { eventCenter } = this.muya
-    const { selectedImage } = this
-    // Show image selector when you press Enter key and there is already one image selected.
-    if (selectedImage) {
-      event.preventDefault()
-      event.stopPropagation()
-      const { imageId, ...imageInfo } = selectedImage
-      const imageWrapper = document.querySelector(`#${imageId}`)
-      const rect = imageWrapper.getBoundingClientRect()
-      const reference = {
-        getBoundingClientRect () {
-          rect.height = 0 // Put image selector bellow the top border of image.
-          return rect
-        }
-      }
-
-      eventCenter.dispatch('muya-image-selector', {
-        reference,
-        imageInfo,
-        cb: () => {}
-      })
-      this.selectedImage = null
-    }
-  }
-
   ContentState.prototype.enterHandler = function (event) {
     const { start, end } = selection.getCursorRange()
-
     if (!start || !end) {
       return event.preventDefault()
     }
     let block = this.getBlock(start.key)
-    const { text } = block
     const endBlock = this.getBlock(end.key)
     let parent = this.getParent(block)
 
@@ -189,6 +160,7 @@ const enterCtrl = ContentState => {
       this.updateCodeLanguage(block, block.text.trim())
       return
     }
+
     // handle select multiple blocks
     if (start.key !== end.key) {
       const key = start.key
@@ -225,44 +197,33 @@ const enterCtrl = ContentState => {
     // handle `shift + enter` insert `soft line break` or `hard line break`
     // only cursor in `line block` can create `soft line break` and `hard line break`
     // handle line in code block
-    if (event.shiftKey && block.type === 'span' && block.functionType === 'paragraphContent') {
-      let { offset } = start
-      const { text, key } = block
-      const indent = getIndentSpace(text)
-      block.text = text.substring(0, offset) + '\n' + indent + text.substring(offset)
-
-      offset += 1 + indent.length
-      this.cursor = {
-        start: { key, offset },
-        end: { key, offset }
-      }
-      return this.partialRender()
-    } else if (
-      block.type === 'span' && block.functionType === 'codeLine'
+    if (
+      (event.shiftKey && block.type === 'span') ||
+      (block.type === 'span' && block.functionType === 'codeLine')
     ) {
       const { text } = block
       const newLineText = text.substring(start.offset)
       const autoIndent = checkAutoIndent(text, start.offset)
       const indent = getIndentSpace(text)
       block.text = text.substring(0, start.offset)
-      const newLine = this.createBlock('span', {
-        text: `${indent}${newLineText}`,
-        functionType: block.functionType,
-        lang: block.lang
-      })
-
+      const newLine = this.createBlock('span', `${indent}${newLineText}`)
+      newLine.functionType = block.functionType
+      newLine.lang = block.lang
       this.insertAfter(newLine, block)
       let { key } = newLine
       let offset = indent.length
       if (autoIndent) {
-        const emptyLine = this.createBlock('span', {
-          text: indent + ' '.repeat(this.tabSize)
-        })
+        const emptyLine = this.createBlock('span', indent + ' '.repeat(this.tabSize))
         emptyLine.functionType = block.functionType
         emptyLine.lang = block.lang
         this.insertAfter(emptyLine, block)
         key = emptyLine.key
         offset = indent.length + this.tabSize
+      }
+
+      if (indent.length >= 4 && !block.preSibling) {
+        this.indentCodeBlockUpdate(block)
+        offset = offset - 4
       }
 
       this.cursor = {
@@ -284,7 +245,7 @@ const enterCtrl = ContentState => {
         start: { key, offset },
         end: { key, offset }
       }
-      return this.partialRender([block])
+      return this.partialRender([ block ])
     }
 
     const getFirstBlockInNextRow = row => {
@@ -347,8 +308,7 @@ const enterCtrl = ContentState => {
       block = parent
       parent = this.getParent(block)
     }
-    const left = start.offset
-    const right = text.length - left
+    const { left, right } = selection.getCaretOffsets(paragraph)
     const type = block.type
     let newBlock
 
@@ -356,20 +316,15 @@ const enterCtrl = ContentState => {
       case left !== 0 && right !== 0: {
         // cursor in the middle
         let { pre, post } = selection.chopHtmlByCursor(paragraph)
+
         if (/^h\d$/.test(block.type)) {
           if (block.headingStyle === 'atx') {
             const PREFIX = /^#+/.exec(pre)[0]
             post = `${PREFIX} ${post}`
           }
-          block.children[0].text = pre
-          newBlock = this.createBlock(type, {
-            headingStyle: block.headingStyle
-          })
-          const headerContent = this.createBlock('span', {
-            text: post,
-            functionType: block.headingStyle === 'atx' ? 'atxLine' : 'paragraphContent'
-          })
-          this.appendChild(newBlock, headerContent)
+          block.text = pre
+          newBlock = this.createBlock(type, post)
+          newBlock.headingStyle = block.headingStyle
           if (block.marker) {
             newBlock.marker = block.marker
           }
@@ -393,10 +348,10 @@ const enterCtrl = ContentState => {
         break
       }
       case left === 0 && right === 0: {
-        // paragraph is empty
-        return this.enterInEmptyParagraph(block)
+         // paragraph is empty
+         return this.enterInEmptyParagraph(block)
       }
-      case left !== 0 && right === 0:
+      case left !== 0 && right === 0: 
       case left === 0 && right !== 0: {
         // cursor at end of paragraph or at begin of paragraph
         if (type === 'li') {
@@ -446,9 +401,9 @@ const enterCtrl = ContentState => {
     // If block is pre block when updated, need to focus it.
     const preParagraphBlock = getParagraphBlock(block)
     const blockNeedFocus = this.codeBlockUpdate(preParagraphBlock)
-    const tableNeedFocus = this.tableBlockUpdate(preParagraphBlock)
-    const htmlNeedFocus = this.updateHtmlBlock(preParagraphBlock)
-    const mathNeedFocus = this.updateMathBlock(preParagraphBlock)
+    let tableNeedFocus = this.tableBlockUpdate(preParagraphBlock)
+    let htmlNeedFocus = this.updateHtmlBlock(preParagraphBlock)
+    let mathNeedFocus = this.updateMathBlock(preParagraphBlock)
     let cursorBlock
 
     switch (true) {
@@ -470,13 +425,12 @@ const enterCtrl = ContentState => {
     }
 
     cursorBlock = getParagraphBlock(cursorBlock)
-    const key = cursorBlock.type === 'p' || cursorBlock.type === 'pre' ? cursorBlock.children[0].key : cursorBlock.key
+    const key = cursorBlock.type === 'p' ? cursorBlock.children[0].key : cursorBlock.key
     const offset = 0
     this.cursor = {
       start: { key, offset },
       end: { key, offset }
     }
-
     this.partialRender()
   }
 }

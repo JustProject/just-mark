@@ -1,14 +1,10 @@
-import { ipcRenderer } from 'electron'
-
-const width = localStorage.getItem('side-bar-width')
-const sideBarWidth = typeof +width === 'number' ? Math.max(+width, 220) : 280
+import { ipcRenderer } from '@/../main/electron'
 
 // messages from main process, and do not change the state
 const state = {
   rightColumn: 'files',
   showSideBar: false,
-  showTabBar: false,
-  sideBarWidth
+  showTabBar: false
 }
 
 const getters = {}
@@ -16,11 +12,6 @@ const getters = {}
 const mutations = {
   SET_LAYOUT (state, layout) {
     Object.assign(state, layout)
-  },
-  SET_SIDE_BAR_WIDTH (state, width) {
-    // TODO: Add side bar to session (GH#732).
-    localStorage.setItem('side-bar-width', Math.max(+width, 220))
-    state.sideBarWidth = width
   }
 }
 
@@ -38,9 +29,6 @@ const actions = {
   SET_LAYOUT_MENU_ITEM ({ commit, state }) {
     const { showTabBar, showSideBar } = state
     ipcRenderer.send('AGANI::set-view-layout', { showTabBar, showSideBar })
-  },
-  CHANGE_SIDE_BAR_WIDTH ({ commit }, width) {
-    commit('SET_SIDE_BAR_WIDTH', width)
   }
 }
 

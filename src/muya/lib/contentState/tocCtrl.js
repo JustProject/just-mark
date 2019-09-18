@@ -5,8 +5,7 @@ const tocCtrl = ContentState => {
 
     for (const block of blocks) {
       if (/^h\d$/.test(block.type)) {
-        const { headingStyle, key, type } = block
-        const { text } = block.children[0]
+        const { headingStyle, text, key, type } = block
         const content = headingStyle === 'setext' ? text.trim() : text.replace(/^ *#{1,6} {1,}/, '').trim()
         const lvl = +type.substring(1)
         const slug = key

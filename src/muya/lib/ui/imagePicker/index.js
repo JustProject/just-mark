@@ -4,8 +4,6 @@ import FolderIcon from '../../assets/icons/folder.svg'
 import ImageIcon from '../../assets/icons/image.svg'
 import UploadIcon from '../../assets/icons/upload.svg'
 
-import './index.css'
-
 const iconhash = {
   'icon-image': ImageIcon,
   'icon-folder': FolderIcon,
@@ -14,14 +12,12 @@ const iconhash = {
 
 class ImagePathPicker extends BaseScrollFloat {
   static pluginName = 'imagePathPicker'
-
   constructor (muya) {
     const name = 'ag-list-picker'
     super(muya, name)
     this.renderArray = []
     this.oldVnode = null
     this.activeItem = null
-    this.floatBox.classList.add('ag-image-picker-wrapper')
     this.listen()
   }
 
@@ -42,7 +38,7 @@ class ImagePathPicker extends BaseScrollFloat {
 
   render () {
     const { renderArray, oldVnode, scrollElement, activeItem } = this
-    const children = renderArray.map((item) => {
+    let children = renderArray.map((item) => {
       const { text, iconClass } = item
       const icon = h('div.icon-wrapper', h('svg', {
         attrs: {
@@ -61,7 +57,7 @@ class ImagePathPicker extends BaseScrollFloat {
           'xlink:href': iconhash[iconClass].url
         }
       }))
-      )
+    )
       const textEle = h('div.language', text)
       const selector = activeItem === item ? 'li.item.active' : 'li.item'
       return h(selector, {

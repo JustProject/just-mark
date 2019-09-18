@@ -1,46 +1,10 @@
 import selection from '../selection'
-import { isMuyaEditorElement } from '../selection/dom'
 import { HAS_TEXT_BLOCK_REG } from '../config'
 
 const clickCtrl = ContentState => {
   ContentState.prototype.clickHandler = function (event) {
     const { eventCenter } = this.muya
     const { target } = event
-    if (isMuyaEditorElement(target)) {
-      const lastBlock = this.getLastBlock()
-      const archor = this.findOutMostBlock(lastBlock)
-      const archorParagraph = document.querySelector(`#${archor.key}`)
-      const rect = archorParagraph.getBoundingClientRect()
-      // If click below the last paragraph
-      // and the last paragraph is not empty, create a new empty paragraph
-      if (event.clientY > rect.top + rect.height) {
-        let needToInsertNewParagraph = false
-        if (lastBlock.type === 'span') {
-          if (/atxLine|paragraphContent/.test(lastBlock.functionType) && /\S/.test(lastBlock.text)) {
-            needToInsertNewParagraph = true
-          }
-          if (!/atxLine|paragraphContent/.test(lastBlock.functionType)) {
-            needToInsertNewParagraph = true
-          }
-        } else {
-          needToInsertNewParagraph = true
-        }
-
-        if (needToInsertNewParagraph) {
-          event.preventDefault()
-          const paragraphBlock = this.createBlockP()
-          this.insertAfter(paragraphBlock, archor)
-          const key = paragraphBlock.children[0].key
-          const offset = 0
-          this.cursor = {
-            start: { key, offset },
-            end: { key, offset }
-          }
-
-          return this.render()
-        }
-      }
-    }
     // handle front menu click
     const { start: oldStart, end: oldEnd } = this.cursor
     if (oldStart && oldEnd) {
@@ -77,47 +41,46 @@ const clickCtrl = ContentState => {
     }
     // format-click
     const node = selection.getSelectionStart()
-    const inlineNode = node ? node.closest('.ag-inline-rule') : null
-    if (inlineNode) {
+    if (node.classList.contains('ag-inline-rule')) {
       let formatType = null
       let data = null
-      switch (inlineNode.tagName) {
+      switch (node.tagName) {
         case 'SPAN': {
-          if (inlineNode.hasAttribute('data-emoji')) {
+          if (node.hasAttribute('data-emoji')) {
             formatType = 'emoji'
-            data = inlineNode.getAttribute('data-emoji')
-          } else if (inlineNode.classList.contains('ag-math-text')) {
+            data = node.getAttribute('data-emoji')
+          } else if (node.classList.contains('ag-math-text')) {
             formatType = 'inline_math'
-            data = inlineNode.textContent
+            data = node.innerHTML
           }
           break
         }
         case 'A': {
           formatType = 'link' // auto link or []() link
           data = {
-            text: inlineNode.textContent,
-            href: inlineNode.getAttribute('href')
+            text: node.innerHTML,
+            href: node.getAttribute('href')
           }
           break
         }
         case 'STRONG': {
           formatType = 'strong'
-          data = inlineNode.textContent
+          data = node.innerHTML
           break
         }
         case 'EM': {
           formatType = 'em'
-          data = inlineNode.textContent
+          data = node.innerHTML
           break
         }
         case 'DEL': {
           formatType = 'del'
-          data = inlineNode.textContent
+          data = node.innerHTML
           break
         }
         case 'CODE': {
           formatType = 'inline_code'
-          data = inlineNode.textContent
+          data = node.innerHTML
           break
         }
       }
@@ -125,7 +88,7 @@ const clickCtrl = ContentState => {
         eventCenter.dispatch('format-click', {
           event,
           formatType,
-          data
+          data,
         })
       }
     }
@@ -142,6 +105,20 @@ const clickCtrl = ContentState => {
       const reference = this.getPositionReference()
       const { formats } = this.selectionFormats()
       eventCenter.dispatch('muya-format-picker', { reference, formats })
+    }
+    // bugfix: #67 problem 1
+    if (block && block.icon) return event.preventDefault()
+    // bugfix: figure block click
+    if (block.type === 'figure' && block.functionType === 'table') {
+      // first cell in thead
+      const cursorBlock = block.children[1].children[0].children[0].children[0]
+      const offset = cursorBlock.text.length
+      const key = cursorBlock.key
+      this.cursor = {
+        start: { key, offset },
+        end: { key, offset }
+      }
+      needRender = true
     }
 
     // update '```xxx' to code block when you click other place or use press arrow key.
@@ -161,23 +138,9 @@ const clickCtrl = ContentState => {
     }
 
     const needMarkedUpdate = this.checkNeedRender(this.cursor) || this.checkNeedRender({ start, end })
-
-    if (needRender) {
-      this.cursor = { start, end }
+    this.cursor = { start, end }
+    if (needMarkedUpdate || needRender) {
       return this.partialRender()
-    } else if (needMarkedUpdate) {
-      // Fix: whole select can not be canceled #613
-      requestAnimationFrame(() => {
-        const cursor = selection.getCursorRange()
-        if (!cursor.start || !cursor.end) {
-          return
-        }
-        this.cursor = cursor
-
-        return this.partialRender()
-      })
-    } else {
-      this.cursor = { start, end }
     }
   }
 }

@@ -3,7 +3,7 @@
  *
  * Before you edit or update codes in this file,
  * make sure you have read this bellow:
- * Commonmark Spec: https://spec.commonmark.org/0.29/
+ * Commonmark Spec: https://spec.commonmark.org/0.28/
  * and GitHub Flavored Markdown Spec: https://github.github.com/gfm/
  * The output markdown needs to obey the standards of the two Spec.
  */
@@ -42,13 +42,17 @@ class ExportMarkdown {
       }
 
       switch (block.type) {
-        case 'p':
-        case 'hr': {
+        case 'p': {
           this.insertLineBreak(result, indent)
           result.push(this.translateBlocks2Markdown(block.children, indent))
           break
         }
         case 'span': {
+          result.push(this.normalizeParagraphText(block, indent))
+          break
+        }
+        case 'hr': {
+          this.insertLineBreak(result, indent)
           result.push(this.normalizeParagraphText(block, indent))
           break
         }
@@ -167,21 +171,17 @@ class ExportMarkdown {
   }
 
   normalizeParagraphText (block, indent) {
-    const { text } = block
-    const lines = text.split('\n')
-    return lines.map(line => `${indent}${line}`).join('\n') + '\n'
+    return `${indent}${block.text}\n`
   }
 
   normalizeHeaderText (block, indent) {
     const { headingStyle, marker } = block
-    const { text } = block.children[0]
     if (headingStyle === 'atx') {
-      const match = text.match(/(#{1,6})(.*)/)
-      const atxHeadingText = `${match[1]} ${match[2].trim()}`
-      return `${indent}${atxHeadingText}\n`
+      const match = block.text.match(/(#{1,6})(.*)/)
+      const text = `${match[1]} ${match[2].trim()}`
+      return `${indent}${text}\n`
     } else if (headingStyle === 'setext') {
-      const lines = text.trim().split('\n')
-      return lines.map(line => `${indent}${line}`).join('\n') + `\n${indent}${marker.trim()}\n`
+      return `${indent}${block.text}\n${indent}${marker.trim()}\n`
     }
   }
 
@@ -244,7 +244,7 @@ class ExportMarkdown {
 
   normalizeHTML (block, indent) { // figure
     const result = []
-    const codeLines = block.children[0].children[0].children
+    const codeLines = block.children[0].children[0].children[0].children
     for (const line of codeLines) {
       result.push(`${indent}${line.text}\n`)
     }
@@ -256,14 +256,11 @@ class ExportMarkdown {
     const { row, column } = table
     const tableData = []
     const tHeader = table.children[0]
-    const tBody = table.children[1]
-    const escapeText = str => {
-      return str.replace(/([^\\])\|/g, '$1\\|')
-    }
 
-    tableData.push(tHeader.children[0].children.map(th => escapeText(th.text).trim()))
+    const tBody = table.children[1]
+    tableData.push(tHeader.children[0].children.map(th => th.text.trim()))
     tBody.children.forEach(bodyRow => {
-      tableData.push(bodyRow.children.map(td => escapeText(td.text).trim()))
+      tableData.push(bodyRow.children.map(td => td.text.trim()))
     })
 
     const columnWidth = tHeader.children[0].children.map(th => ({ width: 5, align: th.align }))
@@ -330,7 +327,7 @@ class ExportMarkdown {
       }
       listInfo.listCount++
 
-      const delimiter = bulletMarkerOrDelimiter || '.'
+      const delimiter = bulletMarkerOrDelimiter ? bulletMarkerOrDelimiter : '.'
       itemMarker = `${n}${delimiter} `
     }
 

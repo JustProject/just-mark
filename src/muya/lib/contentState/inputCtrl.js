@@ -9,10 +9,10 @@ const BRACKET_HASH = {
   '[': ']',
   '(': ')',
   '*': '*',
-  _: '_',
+  '_': '_',
   '"': '"',
   '\'': '\'',
-  $: '$',
+  '$': '$',
   '~': '~'
 }
 
@@ -21,10 +21,10 @@ const BACK_HASH = {
   ']': '[',
   ')': '(',
   '*': '*',
-  _: '_',
+  '_': '_',
   '"': '"',
   '\'': '\'',
-  $: '$',
+  '$': '$',
   '~': '~'
 }
 
@@ -32,7 +32,7 @@ const inputCtrl = ContentState => {
   // Input @ to quick insert paragraph
   ContentState.prototype.checkQuickInsert = function (block) {
     const { type, text, functionType } = block
-    if (type !== 'span' || functionType !== 'paragraphContent') return false
+    if (type !== 'span' || functionType) return false
     return /^@\S*$/.test(text)
   }
 
@@ -82,14 +82,15 @@ const inputCtrl = ContentState => {
     if (!start || !end) {
       return
     }
+
     const { start: oldStart, end: oldEnd } = this.cursor
     const key = start.key
     const block = this.getBlock(key)
     const paragraph = document.querySelector(`#${key}`)
-    let text = getTextContent(paragraph, [CLASS_OR_ID.AG_MATH_RENDER, CLASS_OR_ID.AG_RUBY_RENDER])
-
+    let text = getTextContent(paragraph, [ CLASS_OR_ID['AG_MATH_RENDER'], CLASS_OR_ID['AG_RUBY_RENDER'] ])
     let needRender = false
     let needRenderAll = false
+
     if (oldStart.key !== oldEnd.key) {
       const startBlock = this.getBlock(oldStart.key)
       const startOutmostBlock = this.findOutMostBlock(startBlock)
@@ -97,22 +98,12 @@ const inputCtrl = ContentState => {
       const endOutmostBlock = this.findOutMostBlock(endBlock)
       if (
         // fix #918.
-        startBlock.functionType === 'languageInput'
+        startBlock.functionType === 'languageInput' &&
+        startOutmostBlock === endOutmostBlock &&
+        !endBlock.nextSibling
       ) {
-        if (startOutmostBlock === endOutmostBlock && !endBlock.nextSibling) {
-          this.removeBlocks(startBlock, endBlock, false)
-          endBlock.text = ''
-        } else if (startOutmostBlock !== endOutmostBlock) {
-          const preBlock = this.getParent(startBlock)
-          const pBlock = this.createBlock('p')
-          this.removeBlocks(startBlock, endBlock)
-          startBlock.functionType = 'paragraphContent'
-          this.appendChild(pBlock, startBlock)
-          this.insertBefore(pBlock, preBlock)
-          this.removeBlock(preBlock)
-        } else {
-          this.removeBlocks(startBlock, endBlock)
-        }
+        this.removeBlocks(startBlock, endBlock, false)
+        endBlock.text = ''
       } else {
         this.removeBlocks(startBlock, endBlock)
       }
@@ -130,7 +121,7 @@ const inputCtrl = ContentState => {
         event.type === 'input'
       ) {
         const { offset } = start
-        const { autoPairBracket, autoPairMarkdownSyntax, autoPairQuote } = this.muya.options
+        const { autoPairBracket, autoPairMarkdownSyntax, autoPairQuote } = this
         const inputChar = text.charAt(+offset - 1)
         const preInputChar = text.charAt(+offset - 2)
         const prePreInputChar = text.charAt(+offset - 3)
@@ -186,7 +177,7 @@ const inputCtrl = ContentState => {
             /^\* /.test(text) &&
             preInputChar === '*' &&
             postInputChar === '*'
-          ) {
+            ) {
             text = text.substring(0, offset) + text.substring(offset + 1)
             needRender = true
           }
@@ -196,27 +187,8 @@ const inputCtrl = ContentState => {
       if (this.checkNotSameToken(block.text, text)) {
         needRender = true
       }
-      // Just work for `Shift + Enter` to create a soft and hard line break.
-      if (
-        block.text.endsWith('\n') &&
-        start.offset === text.length &&
-        (event.inputType === 'insertText' || event.type === 'compositionend')
-      ) {
-        block.text += event.data
-        start.offset++
-        end.offset++
-      } else if (
-        block.text.length === oldStart.offset &&
-        block.text[oldStart.offset - 2] === '\n' &&
-        event.inputType === 'deleteContentBackward'
-      ) {
-        block.text = block.text.substring(0, oldStart.offset - 1)
-        start.offset = block.text.length
-        end.offset = block.text.length
-      } else {
-        block.text = text
-      }
-      if (beginRules.reference_definition.test(text)) {
+      block.text = text
+      if (beginRules['reference_definition'].test(text)) {
         needRenderAll = true
       }
     }
@@ -245,6 +217,7 @@ const inputCtrl = ContentState => {
     // Update preview content of math block
     if (block && block.type === 'span' && block.functionType === 'codeLine') {
       needRender = true
+      this.updateCodeBlocks(block)
     }
 
     this.cursor = { start, end }

@@ -1,11 +1,12 @@
-import { ipcRenderer, shell } from 'electron'
+import { ipcRenderer, shell } from '@/../main/electron'
 import notice from '../services/notification'
 
 const state = {}
 
 const getters = {}
 
-const mutations = {}
+const mutations = {
+}
 
 const actions = {
   LISTEN_FOR_NOTIFICATION ({ commit }) {

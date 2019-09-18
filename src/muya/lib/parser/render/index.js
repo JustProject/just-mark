@@ -1,9 +1,9 @@
-import mermaid from 'mermaid/dist/mermaid.core'
+import mermaid from 'mermaid'
 import flowchart from 'flowchart.js'
 import Diagram from './sequence'
 import vegaEmbed from 'vega-embed'
 import { CLASS_OR_ID } from '../../config'
-import { conflict, mixins, camelToSnake } from '../../utils'
+import { conflict, mixins } from '../../utils'
 import { patch, toVNode, toHTML, h } from './snabbdom'
 import { beginRules } from '../rules'
 import renderInlines from './renderInlines'
@@ -13,14 +13,12 @@ class StateRender {
   constructor (muya) {
     this.muya = muya
     this.eventCenter = muya.eventCenter
-    this.codeCache = new Map()
     this.loadImageMap = new Map()
     this.loadMathMap = new Map()
     this.mermaidCache = new Set()
     this.diagramCache = new Map()
     this.tokenCache = new Map()
     this.labels = new Map()
-    this.urlMap = new Map()
     this.container = null
   }
 
@@ -37,7 +35,7 @@ class StateRender {
       if (children && children.length) {
         children.forEach(c => travel(c))
       } else if (text) {
-        const tokens = beginRules.reference_definition.exec(text)
+        const tokens = beginRules['reference_definition'].exec(text)
         if (tokens) {
           const key = (tokens[2] + tokens[3]).toLowerCase()
           if (!this.labels.has(key)) {
@@ -71,27 +69,26 @@ class StateRender {
   }
 
   getClassName (outerClass, block, token, cursor) {
-    return outerClass || (this.checkConflicted(block, token, cursor) ? CLASS_OR_ID.AG_GRAY : CLASS_OR_ID.AG_HIDE)
+    return outerClass || (this.checkConflicted(block, token, cursor) ? CLASS_OR_ID['AG_GRAY'] : CLASS_OR_ID['AG_HIDE'])
   }
 
   getHighlightClassName (active) {
-    return active ? CLASS_OR_ID.AG_HIGHLIGHT : CLASS_OR_ID.AG_SELECTION
+    return active ? CLASS_OR_ID['AG_HIGHLIGHT'] : CLASS_OR_ID['AG_SELECTION']
   }
 
-  getSelector (block, activeBlocks) {
-    const { cursor, selectedBlock } = this.muya.contentState
+  getSelector (block, cursor, activeBlocks, selectedBlock) {
     const type = block.type === 'hr' ? 'p' : block.type
     const isActive = activeBlocks.some(b => b.key === block.key) || block.key === cursor.start.key
 
-    let selector = `${type}#${block.key}.${CLASS_OR_ID.AG_PARAGRAPH}`
+    let selector = `${type}#${block.key}.${CLASS_OR_ID['AG_PARAGRAPH']}`
     if (isActive) {
-      selector += `.${CLASS_OR_ID.AG_ACTIVE}`
+      selector += `.${CLASS_OR_ID['AG_ACTIVE']}`
     }
     if (type === 'span') {
-      selector += `.ag-${camelToSnake(block.functionType)}`
+      selector += `.${CLASS_OR_ID['AG_LINE']}`
     }
     if (!block.parent && selectedBlock && block.key === selectedBlock.key) {
-      selector += `.${CLASS_OR_ID.AG_SELECTED}`
+      selector += `.${CLASS_OR_ID['AG_SELECTED']}`
     }
     return selector
   }
@@ -101,7 +98,7 @@ class StateRender {
       mermaid.initialize({
         theme: this.muya.options.mermaidTheme
       })
-      mermaid.init(undefined, document.querySelectorAll(Array.from(this.mermaidCache).join(', ')))
+      mermaid.init(undefined, document.querySelectorAll([...this.mermaidCache].join(', ')))
       this.mermaidCache.clear()
     }
   }
@@ -109,8 +106,8 @@ class StateRender {
   async renderDiagram () {
     const cache = this.diagramCache
     const RENDER_MAP = {
-      flowchart: flowchart,
-      sequence: Diagram,
+      'flowchart': flowchart,
+      'sequence': Diagram,
       'vega-lite': vegaEmbed
     }
     if (cache.size) {
@@ -123,9 +120,7 @@ class StateRender {
           Object.assign(options, { theme: this.muya.options.sequenceTheme })
         } else if (functionType === 'vega-lite') {
           Object.assign(options, {
-            actions: false,
-            tooltip: false,
-            renderer: 'svg',
+            actions: false, tooltip: false, renderer: 'svg',
             theme: this.muya.options.vegaTheme
           })
         }
@@ -139,17 +134,18 @@ class StateRender {
           }
         } catch (err) {
           target.innerHTML = `< Invalid ${functionType === 'flowchart' ? 'Flow Chart' : 'Sequence'} Codes >`
-          target.classList.add(CLASS_OR_ID.AG_MATH_ERROR)
+          target.classList.add(CLASS_OR_ID['AG_MATH_ERROR'])
         }
       }
       this.diagramCache.clear()
     }
   }
 
-  render (blocks, activeBlocks, matches) {
-    const selector = `div#${CLASS_OR_ID.AG_EDITOR_ID}`
+  render (blocks, cursor, activeBlocks, matches, selectedBlock) {
+    const selector = `div#${CLASS_OR_ID['AG_EDITOR_ID']}`
+
     const children = blocks.map(block => {
-      return this.renderBlock(block, activeBlocks, matches, true)
+      return this.renderBlock(block, cursor, activeBlocks, selectedBlock, matches, true)
     })
 
     const newVdom = h(selector, children)
@@ -159,21 +155,20 @@ class StateRender {
     patch(oldVdom, newVdom)
     this.renderMermaid()
     this.renderDiagram()
-    this.codeCache.clear()
   }
 
   // Only render the blocks which you updated
-  partialRender (blocks, activeBlocks, matches, startKey, endKey) {
+  partialRender (blocks, cursor, activeBlocks, matches, startKey, endKey, selectedBlock) {
     const cursorOutMostBlock = activeBlocks[activeBlocks.length - 1]
     // If cursor is not in render blocks, need to render cursor block independently
     const needRenderCursorBlock = blocks.indexOf(cursorOutMostBlock) === -1
-    const newVnode = h('section', blocks.map(block => this.renderBlock(block, activeBlocks, matches)))
+    const newVnode = h('section', blocks.map(block => this.renderBlock(block, cursor, activeBlocks, selectedBlock, matches)))
     const html = toHTML(newVnode).replace(/^<section>([\s\S]+?)<\/section>$/, '$1')
 
     const needToRemoved = []
     const firstOldDom = startKey
       ? document.querySelector(`#${startKey}`)
-      : document.querySelector(`div#${CLASS_OR_ID.AG_EDITOR_ID}`).firstElementChild
+      : document.querySelector(`div#${CLASS_OR_ID['AG_EDITOR_ID']}`).firstElementChild
     if (!firstOldDom) {
       // TODO@Jocs Just for fix #541, Because I'll rewrite block and render method, it will nolonger have this issue.
       return
@@ -196,32 +191,13 @@ class StateRender {
       const cursorDom = document.querySelector(`#${key}`)
       if (cursorDom) {
         const oldCursorVnode = toVNode(cursorDom)
-        const newCursorVnode = this.renderBlock(cursorOutMostBlock, activeBlocks, matches)
+        const newCursorVnode = this.renderBlock(cursorOutMostBlock, cursor, activeBlocks, selectedBlock, matches)
         patch(oldCursorVnode, newCursorVnode)
       }
     }
 
     this.renderMermaid()
     this.renderDiagram()
-    this.codeCache.clear()
-  }
-
-  /**
-   * Only render one block.
-   *
-   * @param {object} block
-   * @param {array} activeBlocks
-   * @param {array} matches
-   */
-  singleRender (block, activeBlocks, matches) {
-    const selector = `#${block.key}`
-    const newVdom = this.renderBlock(block, activeBlocks, matches, true)
-    const rootDom = document.querySelector(selector)
-    const oldVdom = toVNode(rootDom)
-    patch(oldVdom, newVdom)
-    this.renderMermaid()
-    this.renderDiagram()
-    this.codeCache.clear()
   }
 }
 

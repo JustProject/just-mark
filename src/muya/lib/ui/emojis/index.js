@@ -5,11 +5,12 @@ import { CLASS_OR_ID } from '../../config'
 const emojisForSearch = {}
 
 for (const emoji of emojis) {
+  if (emoji.emoji.length > 2) continue
   const newEmoji = Object.assign({}, emoji, { search: [...emoji.aliases, ...emoji.tags].join(' ') })
   if (emojisForSearch[newEmoji.category]) {
     emojisForSearch[newEmoji.category].push(newEmoji)
   } else {
-    emojisForSearch[newEmoji.category] = [newEmoji]
+    emojisForSearch[newEmoji.category] = [ newEmoji ]
   }
 }
 
@@ -27,7 +28,7 @@ export const validEmoji = text => {
  */
 
 export const checkEditEmoji = node => {
-  if (node && node.classList.contains(CLASS_OR_ID.AG_EMOJI_MARKED_TEXT)) {
+  if (node && node.classList.contains(CLASS_OR_ID['AG_EMOJI_MARKED_TEXT'])) {
     return node
   }
   return false

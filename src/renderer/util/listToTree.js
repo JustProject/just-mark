@@ -1,48 +1,30 @@
-class Node {
-  constructor (item) {
-    const { parent, lvl, content, slug } = item
-    this.parent = parent
-    this.lvl = lvl
-    this.label = content
-    this.slug = slug
-    this.children = []
-  }
-
-  // Add child node.
-  addChild (node) {
-    this.children.push(node)
-  }
-}
-
-const findParent = (item, lastNode, rootNode) => {
-  if (!lastNode) {
-    return rootNode
-  }
-  const { lvl: lastLvl } = lastNode
-  const { lvl } = item
-
-  if (lvl < lastLvl) {
-    return findParent(item, lastNode.parent, rootNode)
-  } else if (lvl === lastLvl) {
-    return lastNode.parent
-  } else {
-    return lastNode
-  }
-}
-
 const listToTree = list => {
-  const rootNode = new Node({ parent: null, lvl: null, content: null, slug: null })
-  let lastNode = null
+  const result = []
+  let parent = null
+  let child = null
+  let tempLvl = 7 // any number great than 6
 
-  for (const item of list) {
-    const parent = findParent(item, lastNode, rootNode)
-
-    const node = new Node({ parent, ...item })
-    parent.addChild(node)
-    lastNode = node
+  for (const { lvl, content, slug } of list) {
+    const item = {
+      lvl, label: content, slug, children: []
+    }
+    if (lvl < tempLvl) {
+      tempLvl = lvl
+      result.push(item)
+      parent = { children: result }
+      child = item
+    } else if (lvl === tempLvl) {
+      parent.children.push(item)
+      child = item
+    } else if (lvl > tempLvl) {
+      tempLvl = lvl
+      child.children.push(item)
+      parent = child
+      child = item
+    }
   }
 
-  return rootNode.children
+  return result
 }
 
 export default listToTree

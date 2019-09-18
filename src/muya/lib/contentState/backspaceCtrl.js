@@ -1,7 +1,6 @@
 import selection from '../selection'
 import { findNearestParagraph, findOutMostParagraph } from '../selection/dom'
 import { tokenizer, generator } from '../parser/'
-import { getImageInfo } from '../utils/getImageInfo'
 
 const backspaceCtrl = ContentState => {
   ContentState.prototype.checkBackspaceCase = function () {
@@ -101,58 +100,14 @@ const backspaceCtrl = ContentState => {
     }
   }
 
-  ContentState.prototype.docBackspaceHandler = function (event) {
-    // handle delete selected image
-    if (this.selectedImage) {
-      event.preventDefault()
-      return this.deleteImage(this.selectedImage)
-    }
-  }
-
   ContentState.prototype.backspaceHandler = function (event) {
     const { start, end } = selection.getCursorRange()
 
     if (!start || !end) {
       return
     }
-
-    if (this.isSelectAll()) {
-      event.preventDefault()
-      this.blocks = [this.createBlockP()]
-      this.init()
-
-      this.render()
-
-      this.muya.dispatchSelectionChange()
-      this.muya.dispatchSelectionFormats()
-      return this.muya.dispatchChange()
-    }
-
     const startBlock = this.getBlock(start.key)
     const endBlock = this.getBlock(end.key)
-    const maybeLastRow = this.getParent(endBlock)
-    const startOutmostBlock = this.findOutMostBlock(startBlock)
-    const endOutmostBlock = this.findOutMostBlock(endBlock)
-    // Just for fix delete the last `#` or all the atx heading cause error @fixme
-    if (
-      start.key === end.key &&
-      startBlock.type === 'span' &&
-      startBlock.functionType === 'atxLine'
-    ) {
-      if (
-        start.offset === 0 && end.offset === startBlock.text.length ||
-        start.offset === end.offset && start.offset === 1 && startBlock.text === '#'
-      ) {
-        event.preventDefault()
-        startBlock.text = ''
-        this.cursor = {
-          start: { key: start.key, offset: 0 },
-          end: { key: end.key, offset: 0 }
-        }
-        this.updateToParagraph(this.getParent(startBlock), startBlock)
-        return this.partialRender()
-      }
-    }
     // fix: #897
     const { text } = startBlock
     const tokens = tokenizer(text)
@@ -193,36 +148,26 @@ const backspaceCtrl = ContentState => {
       return this.partialRender()
     }
 
-    // fix bug when the first block is table, these two ways will cause bugs.
-    // 1. one paragraph bollow table, selectAll, press backspace.
-    // 2. select table from the first cell to the last cell, press backsapce.
-    if (/th/.test(startBlock.type) && start.offset === 0 && !startBlock.preSibling) {
-      if (
-        end.offset === endBlock.text.length &&
-        startOutmostBlock === endOutmostBlock &&
-        !endBlock.nextSibling && !maybeLastRow.nextSibling ||
-        startOutmostBlock !== endOutmostBlock
-      ) {
-        event.preventDefault()
-        // need remove the figure block.
-        const figureBlock = this.getBlock(this.findFigure(startBlock))
-        // if table is the only block, need create a p block.
-        const p = this.createBlockP(endBlock.text.substring(end.offset))
-        this.insertBefore(p, figureBlock)
-        const cursorBlock = p.children[0]
-        if (startOutmostBlock !== endOutmostBlock) {
-          this.removeBlocks(figureBlock, endBlock)
-        }
-
-        this.removeBlock(figureBlock)
-        const { key } = cursorBlock
-        const offset = 0
-        this.cursor = {
-          start: { key, offset },
-          end: { key, offset }
-        }
-        return this.render()
+    // fix: unexpect remove all editor html. #67 problem 4
+    if (startBlock.type === 'figure' && !startBlock.preSibling) {
+      event.preventDefault()
+      this.removeBlock(startBlock)
+      if (start.key !== end.key) {
+        this.removeBlocks(startBlock, endBlock)
       }
+      let newBlock = this.findNextBlockInLocation(startBlock)
+      if (!newBlock) {
+        this.blocks = [this.createBlockP()]
+        newBlock = this.blocks[0].children[0]
+      }
+      const key = newBlock.key
+      const offset = 0
+
+      this.cursor = {
+        start: { key, offset },
+        end: { key, offset }
+      }
+      return this.render()
     }
 
     // If select multiple paragraph or multiple characters in one paragraph, just let
@@ -232,49 +177,13 @@ const backspaceCtrl = ContentState => {
     }
 
     const node = selection.getSelectionStart()
-    const preEleSibling = node && node.nodeType === 1 ? node.previousElementSibling : null
     const paragraph = findNearestParagraph(node)
     const id = paragraph.id
     let block = this.getBlock(id)
     let parent = this.getBlock(block.parent)
     const preBlock = this.findPreBlockInLocation(block)
-    const { left, right } = selection.getCaretOffsets(paragraph)
+    const { left } = selection.getCaretOffsets(paragraph)
     const inlineDegrade = this.checkBackspaceCase()
-
-    // Handle backspace when the previous is an inline image.
-    if (preEleSibling && preEleSibling.classList.contains('ag-inline-image')) {
-      if (selection.getCaretOffsets(node).left === 0) {
-        event.preventDefault()
-        event.stopPropagation()
-        const imageInfo = getImageInfo(preEleSibling)
-        return this.selectImage(imageInfo)
-      }
-      if (selection.getCaretOffsets(node).left === 1 && right === 0) {
-        event.stopPropagation()
-        event.preventDefault()
-        const key = startBlock.key
-        const text = startBlock.text
-
-        startBlock.text = text.substring(0, start.offset - 1) + text.substring(start.offset)
-        const offset = start.offset - 1
-        this.cursor = {
-          start: { key, offset },
-          end: { key, offset }
-        }
-        return this.singleRender(startBlock)
-      }
-    }
-
-    // handle backspace when cursor at the end of inline image.
-    if (node.classList.contains('ag-image-container')) {
-      const imageWrapper = node.parentNode
-      const imageInfo = getImageInfo(imageWrapper)
-      if (start.offset === imageInfo.token.range.end) {
-        event.preventDefault()
-        event.stopPropagation()
-        return this.selectImage(imageInfo)
-      }
-    }
 
     const tableHasContent = table => {
       const tHead = table.children[0]
@@ -297,7 +206,7 @@ const backspaceCtrl = ContentState => {
       ) {
         const preBlock = this.getParent(parent)
         const pBlock = this.createBlock('p')
-        const lineBlock = this.createBlock('span', { text: block.text })
+        const lineBlock = this.createBlock('span', block.text)
         const key = lineBlock.key
         const offset = 0
         this.appendChild(pBlock, lineBlock)
@@ -313,8 +222,10 @@ const backspaceCtrl = ContentState => {
           case 'mermaid':
           case 'sequence':
           case 'vega-lite':
-          case 'html':
             referenceBlock = this.getParent(preBlock)
+            break
+          case 'html':
+            referenceBlock = this.getParent(this.getParent(preBlock))
             break
         }
         this.insertBefore(pBlock, referenceBlock)

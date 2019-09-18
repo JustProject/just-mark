@@ -1,7 +1,7 @@
 import { deepCopy } from '../utils'
 import { UNDO_DEPTH } from '../config'
 
-class History {
+export class History {
   constructor (contentState) {
     this.stack = []
     this.index = -1

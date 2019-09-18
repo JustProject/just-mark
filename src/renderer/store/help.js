@@ -12,9 +12,10 @@ export const defaultFileState = {
   pathname: '',
   filename: 'Untitled-1',
   markdown: '',
-  encoding: 'utf8', // Currently just "utf8" or "utf8bom"
+  isUtf8BomEncoded: false,
   lineEnding: 'lf', // lf or crlf
   adjustLineEndingOnSave: false, // convert editor buffer (LF) to CRLF when saving
+  textDirection: 'ltr',
   history: {
     stack: [],
     index: -1
@@ -34,8 +35,8 @@ export const defaultFileState = {
 }
 
 export const getOptionsFromState = file => {
-  const { encoding, lineEnding, adjustLineEndingOnSave } = file
-  return { encoding, lineEnding, adjustLineEndingOnSave }
+  const { isUtf8BomEncoded, lineEnding, adjustLineEndingOnSave } = file
+  return { isUtf8BomEncoded, lineEnding, adjustLineEndingOnSave }
 }
 
 export const getFileStateFromData = data => {
@@ -44,9 +45,10 @@ export const getFileStateFromData = data => {
     markdown,
     filename,
     pathname,
-    encoding,
+    isUtf8BomEncoded,
     lineEnding,
-    adjustLineEndingOnSave
+    adjustLineEndingOnSave,
+    textDirection
   } = data
   const id = getUniqueId()
 
@@ -57,9 +59,10 @@ export const getFileStateFromData = data => {
     markdown,
     filename,
     pathname,
-    encoding,
+    isUtf8BomEncoded,
     lineEnding,
-    adjustLineEndingOnSave
+    adjustLineEndingOnSave,
+    textDirection
   })
 }
 
@@ -75,11 +78,6 @@ export const getBlankFileState = (tabs, lineEnding = 'lf', markdown = '') => {
 
   const id = getUniqueId()
 
-  // We may pass muarkdown=null as parameter.
-  if (markdown == null) {
-    markdown = ''
-  }
-
   return Object.assign(fileState, {
     lineEnding,
     adjustLineEndingOnSave: lineEnding.toLowerCase() === 'crlf',
@@ -93,7 +91,7 @@ export const getSingleFileState = ({ id = getUniqueId(), markdown, filename, pat
   // TODO(refactor:renderer/editor): Replace this function with `createDocumentState`.
 
   const fileState = JSON.parse(JSON.stringify(defaultFileState))
-  const { encoding, lineEnding, adjustLineEndingOnSave = 'ltr' } = options
+  const { isUtf8BomEncoded, lineEnding, adjustLineEndingOnSave, textDirection = 'ltr' } = options
 
   assertLineEnding(adjustLineEndingOnSave, lineEnding)
 
@@ -102,8 +100,9 @@ export const getSingleFileState = ({ id = getUniqueId(), markdown, filename, pat
     markdown,
     filename,
     pathname,
-    encoding,
+    isUtf8BomEncoded,
     lineEnding,
+    textDirection,
     adjustLineEndingOnSave
   })
 }
@@ -121,10 +120,9 @@ export const createDocumentState = (markdownDocument, id = getUniqueId()) => {
     markdown,
     filename,
     pathname,
-    encoding,
+    isUtf8BomEncoded,
     lineEnding,
     adjustLineEndingOnSave,
-    cursor = null
   } = markdownDocument
 
   assertLineEnding(adjustLineEndingOnSave, lineEnding)
@@ -134,9 +132,8 @@ export const createDocumentState = (markdownDocument, id = getUniqueId()) => {
     markdown,
     filename,
     pathname,
-    encoding,
+    isUtf8BomEncoded,
     lineEnding,
-    cursor,
     adjustLineEndingOnSave
   })
 }

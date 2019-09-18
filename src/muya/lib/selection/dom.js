@@ -4,35 +4,13 @@ import {
 const CHOP_TEXT_REG = /(\*{1,3})([^*]+)(\1)/g
 
 export const getTextContent = (node, blackList) => {
-  if (node.nodeType === 3) {
-    return node.textContent
-  } else if (!blackList) {
-    return node.textContent
-  }
-
+  if (!blackList) return node.textContent
   let text = ''
   if (blackList.some(className => node.classList && node.classList.contains(className))) {
     return text
   }
   if (node.nodeType === 3) {
     text += node.textContent
-  } else if (node.nodeType === 1 && node.classList.contains('ag-inline-image')) {
-    // handle inline image
-    const raw = node.getAttribute('data-raw')
-    const imageContainer = node.querySelector('.ag-image-container')
-    const hasImg = imageContainer.querySelector('img')
-    const childNodes = imageContainer.childNodes
-    if (childNodes.length && hasImg) {
-      for (const child of childNodes) {
-        if (child.nodeType === 1 && child.nodeName === 'IMG') {
-          text += raw
-        } else if (child.nodeType === 3) {
-          text += child.textContent
-        }
-      }
-    } else {
-      text += raw
-    }
   } else {
     const childNodes = node.childNodes
     for (const n of childNodes) {
@@ -40,23 +18,6 @@ export const getTextContent = (node, blackList) => {
     }
   }
   return text
-}
-
-export const getOffsetOfParagraph = (node, paragraph) => {
-  let offset = 0
-  let preSibling = node
-
-  if (node === paragraph) return offset
-
-  do {
-    preSibling = preSibling.previousSibling
-    if (preSibling) {
-      offset += getTextContent(preSibling, [CLASS_OR_ID.AG_MATH_RENDER, CLASS_OR_ID.AG_RUBY_RENDER]).length
-    }
-  } while (preSibling)
-  return (node === paragraph || node.parentNode === paragraph)
-    ? offset
-    : offset + getOffsetOfParagraph(node.parentNode, paragraph)
 }
 
 export const findNearestParagraph = node => {
@@ -72,14 +33,14 @@ export const findNearestParagraph = node => {
 
 export const findOutMostParagraph = node => {
   do {
-    const parentNode = node.parentNode
-    if (isMuyaEditorElement(parentNode) && isAganippeParagraph(node)) return node
+    let parentNode = node.parentNode
+    if (isAganippeEditorElement(parentNode) && isAganippeParagraph(node)) return node
     node = parentNode
   } while (node)
 }
 
 export const isAganippeParagraph = element => {
-  return element && element.classList && element.classList.contains(CLASS_OR_ID.AG_PARAGRAPH)
+  return element && element.classList && element.classList.contains(CLASS_OR_ID['AG_PARAGRAPH'])
 }
 
 export const isBlockContainer = element => {
@@ -87,8 +48,8 @@ export const isBlockContainer = element => {
   blockContainerElementNames.indexOf(element.nodeName.toLowerCase()) !== -1
 }
 
-export const isMuyaEditorElement = element => {
-  return element && element.id === CLASS_OR_ID.AG_EDITOR_ID
+export const isAganippeEditorElement = element => {
+  return element && element.id === CLASS_OR_ID['AG_EDITOR_ID']
 }
 
 export const traverseUp = (current, testElementFunction) => {
@@ -102,7 +63,7 @@ export const traverseUp = (current, testElementFunction) => {
         return current
       }
       // do not traverse upwards past the nearest containing editor
-      if (isMuyaEditorElement(current)) {
+      if (isAganippeEditorElement(current)) {
         return false
       }
     }
@@ -134,7 +95,7 @@ export const getFirstSelectableLeafNode = element => {
 
 export const getClosestBlockContainer = node => {
   return traverseUp(node, node => {
-    return isBlockContainer(node) || isMuyaEditorElement(node)
+    return isBlockContainer(node) || isAganippeEditorElement(node)
   })
 }
 

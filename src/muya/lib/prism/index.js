@@ -1,35 +1,12 @@
-import Prism from 'prismjs'
+import Prism from 'prismjs2'
 import { filter } from 'fuzzaldrin'
-import initLoadLanguage, { loadedCache, transfromAliasToOrigin } from './loadLanguage'
+import initLoadLanguage, { loadedCache } from './loadLanguage'
 import languages from './languages'
 
 const prism = Prism
 window.Prism = Prism
-import('prismjs/plugins/keep-markup/prism-keep-markup')
-
-const langs = []
-
-for (const name of Object.keys(languages)) {
-  const lang = languages[name]
-  langs.push({
-    name,
-    ...lang
-  })
-  if (lang.alias) {
-    if (typeof lang.alias === 'string') {
-      langs.push({
-        name: lang.alias,
-        ...lang
-      })
-    } else if (Array.isArray(lang.alias)) {
-      langs.push(...lang.alias.map(a => ({
-        name: a,
-        ...lang
-      })))
-    }
-  }
-}
-
+import('prismjs2/plugins/keep-markup/prism-keep-markup')
+const langs = Object.keys(languages).map(name => (languages[name]))
 const loadLanguage = initLoadLanguage(Prism)
 
 const search = text => {
@@ -44,7 +21,6 @@ export {
   search,
   loadLanguage,
   loadedCache,
-  transfromAliasToOrigin,
   languages
 }
 

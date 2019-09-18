@@ -2,7 +2,6 @@ import ContentState from './contentState'
 import EventCenter from './eventHandler/event'
 import Clipboard from './eventHandler/clipboard'
 import Keyboard from './eventHandler/keyboard'
-import DragDrop from './eventHandler/dragDrop'
 import ClickEvent from './eventHandler/clickEvent'
 import { CLASS_OR_ID, MUYA_DEFAULT_OPTION } from './config'
 import { wordCount } from './utils'
@@ -13,25 +12,21 @@ import './assets/styles/index.css'
 
 class Muya {
   static plugins = []
-
-  static use (plugin, options = {}) {
-    this.plugins.push({
-      plugin,
-      options
-    })
+  static use (plugin) {
+    this.plugins.push(plugin)
   }
-
   constructor (container, options) {
     this.options = Object.assign({}, MUYA_DEFAULT_OPTION, options)
-    const { markdown } = this.options
+    const { focusMode, markdown } = this.options
+    this.focusMode = focusMode
     this.markdown = markdown
     this.container = getContainer(container, this.options)
     this.eventCenter = new EventCenter()
     this.tooltip = new ToolTip(this)
     // UI plugins
     if (Muya.plugins.length) {
-      for (const { plugin: Plugin, options: opts } of Muya.plugins) {
-        this[Plugin.pluginName] = new Plugin(this, opts)
+      for (const Plugin of Muya.plugins) {
+        this[Plugin.pluginName] = new Plugin(this)
       }
     }
 
@@ -39,7 +34,6 @@ class Muya {
     this.clipboard = new Clipboard(this)
     this.clickEvent = new ClickEvent(this)
     this.keyboard = new Keyboard(this)
-    this.dragdrop = new DragDrop(this)
     this.init()
   }
 
@@ -47,55 +41,10 @@ class Muya {
     const { container, contentState, eventCenter } = this
     contentState.stateRender.setContainer(container.children[0])
     eventCenter.subscribe('stateChange', this.dispatchChange)
-    const { markdown } = this
-    const { focusMode } = this.options
+    contentState.listenForPathChange()
+    const { focusMode, markdown } = this
     this.setMarkdown(markdown)
     this.setFocusMode(focusMode)
-    this.mutationObserver()
-    eventCenter.attachDOMEvent(container, 'focus', () => {
-      eventCenter.dispatch('focus')
-    })
-    eventCenter.attachDOMEvent(container, 'blur', () => {
-      eventCenter.dispatch('blur')
-    })
-  }
-
-  mutationObserver () {
-    // Select the node that will be observed for mutations
-    const { container, eventCenter } = this
-
-    // Options for the observer (which mutations to observe)
-    const config = { childList: true, subtree: true }
-
-    // Callback function to execute when mutations are observed
-    const callback = (mutationsList, observer) => {
-      for (const mutation of mutationsList) {
-        if (mutation.type === 'childList') {
-          const { removedNodes, target } = mutation
-          // If the code executes any of the following `if` statements, the editor has gone wrong.
-          // need to report bugs.
-          if (removedNodes && removedNodes.length) {
-            const hasTable = Array.from(removedNodes).some(node => node.nodeType === 1 && node.closest('table.ag-paragraph'))
-            if (hasTable) {
-              eventCenter.dispatch('crashed')
-              console.warn('There was a problem with the table deletion.')
-            }
-          }
-
-          if (target.getAttribute('id') === 'ag-editor-id' && target.childElementCount === 0) {
-            // TODO: the editor can not be input any more. report bugs and recovery...
-            eventCenter.dispatch('crashed')
-            console.warn('editor crashed, and can not be input any more.')
-          }
-        }
-      }
-    }
-
-    // Create an observer instance linked to the callback function
-    const observer = new MutationObserver(callback)
-
-    // Start observing the target node for configured mutations
-    observer.observe(container, config)
   }
 
   dispatchChange = () => {
@@ -106,18 +55,6 @@ class Muya {
     const history = this.getHistory()
     const toc = this.getTOC()
     eventCenter.dispatch('change', { markdown, wordCount, cursor, history, toc })
-  }
-
-  dispatchSelectionChange = () => {
-    const selectionChanges = this.contentState.selectionChange()
-
-    this.eventCenter.dispatch('selectionChange', selectionChanges)
-  }
-
-  dispatchSelectionFormats = () => {
-    const { formats } = this.contentState.selectionFormats()
-
-    this.eventCenter.dispatch('selectionFormats', formats)
   }
 
   getMarkdown () {
@@ -142,9 +79,9 @@ class Muya {
     return this.contentState.history.clearHistory()
   }
 
-  exportStyledHTML (title = '', printOptimization = false, extraCss = '') {
+  exportStyledHTML (title = '', printOptimization = false) {
     const { markdown } = this
-    return new ExportHtml(markdown, this).generate(title, printOptimization, extraCss)
+    return new ExportHtml(markdown, this).generate(title, printOptimization)
   }
 
   exportHtml () {
@@ -162,25 +99,15 @@ class Muya {
 
   setMarkdown (markdown, cursor, isRenderCursor = true) {
     let newMarkdown = markdown
-    let isValid = false
-    if (cursor && cursor.anchor && cursor.focus) {
-      const cursorInfo = this.contentState.addCursorToMarkdown(markdown, cursor)
-      newMarkdown = cursorInfo.markdown
-      isValid = cursorInfo.isValid
+    if (cursor) {
+      newMarkdown = this.contentState.addCursorToMarkdown(markdown, cursor)
     }
     this.contentState.importMarkdown(newMarkdown)
-    this.contentState.importCursor(cursor && isValid)
+    this.contentState.importCursor(cursor)
     this.contentState.render(isRenderCursor)
     setTimeout(() => {
       this.dispatchChange()
     }, 0)
-  }
-
-  setCursor (cursor) {
-    const markdown = this.getMarkdown()
-    const isRenderCursor = true
-
-    return this.setMarkdown(markdown, cursor, isRenderCursor)
   }
 
   createTable (tableChecker) {
@@ -192,19 +119,22 @@ class Muya {
   }
 
   setFocusMode (bool) {
-    const { container } = this
-    const { focusMode } = this.options
+    const { container, focusMode } = this
     if (bool && !focusMode) {
-      container.classList.add(CLASS_OR_ID.AG_FOCUS_MODE)
+      container.classList.add(CLASS_OR_ID['AG_FOCUS_MODE'])
     } else {
-      container.classList.remove(CLASS_OR_ID.AG_FOCUS_MODE)
+      container.classList.remove(CLASS_OR_ID['AG_FOCUS_MODE'])
     }
-    this.options.focusMode = bool
+    this.focusMode = bool
   }
 
   setFont ({ fontSize, lineHeight }) {
     if (fontSize) this.contentState.fontSize = parseInt(fontSize, 10)
     if (lineHeight) this.contentState.lineHeight = lineHeight
+  }
+
+  setListItemPreference (preferLooseListItem) {
+    this.contentState.preferLooseListItem = preferLooseListItem
   }
 
   setTabSize (tabSize) {
@@ -262,12 +192,20 @@ class Muya {
     this.container.blur()
   }
 
+  showAutoImagePath (files) {
+    const list = files.map(f => {
+      const iconClass = f.type === 'directory' ? 'icon-folder' : 'icon-image'
+      return Object.assign(f, { iconClass, text: f.file + (f.type === 'directory' ? '/' : '') })
+    })
+    this.contentState.showAutoImagePath(list)
+  }
+
   format (type) {
     this.contentState.format(type)
   }
 
-  insertImage (imageInfo) {
-    this.contentState.insertImage(imageInfo)
+  insertImage (url) {
+    this.contentState.insertImage(url)
   }
 
   search (value, opt) {
@@ -303,28 +241,10 @@ class Muya {
 
   undo () {
     this.contentState.history.undo()
-
-    this.dispatchSelectionChange()
-    this.dispatchSelectionFormats()
-    this.dispatchChange()
   }
 
   redo () {
     this.contentState.history.redo()
-
-    this.dispatchSelectionChange()
-    this.dispatchSelectionFormats()
-    this.dispatchChange()
-  }
-
-  selectAll () {
-    if (this.hasFocus()) {
-      this.contentState.selectAll()
-    }
-    const activeElement = document.activeElement
-    if (activeElement.nodeName === 'INPUT') {
-      activeElement.select()
-    }
   }
 
   copyAsMarkdown () {
@@ -348,25 +268,6 @@ class Muya {
     if (needRender) {
       this.contentState.render()
     }
-
-    // Set quick insert hint visibility
-    const hideQuickInsertHint = options.hideQuickInsertHint
-    if (typeof hideQuickInsertHint !== 'undefined') {
-      const hasClass = this.container.classList.contains('ag-show-quick-insert-hint')
-      if (hideQuickInsertHint && hasClass) {
-        this.container.classList.remove('ag-show-quick-insert-hint')
-      } else if (!hideQuickInsertHint && !hasClass) {
-        this.container.classList.add('ag-show-quick-insert-hint')
-      }
-    }
-
-    if (options.bulletListMarker) {
-      this.contentState.turndownConfig.bulletListMarker = options.bulletListMarker
-    }
-  }
-
-  hideAllFloatTools () {
-    return this.keyboard.hideAllFloatTools()
   }
 
   destroy () {

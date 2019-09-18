@@ -6,10 +6,7 @@ import marked from '../parser/marked'
 
 const copyCutCtrl = ContentState => {
   ContentState.prototype.cutHandler = function () {
-    const { start, end } = selection.getCursorRange()
-    if (!start || !end) {
-      return
-    }
+    const { start, end } = this.cursor
     const startBlock = this.getBlock(start.key)
     const endBlock = this.getBlock(end.key)
     startBlock.text = startBlock.text.substring(0, start.offset) + endBlock.text.substring(end.offset)
@@ -20,7 +17,6 @@ const copyCutCtrl = ContentState => {
       start,
       end: start
     }
-    this.checkInlineUpdate(startBlock)
     this.partialRender()
   }
 
@@ -29,43 +25,25 @@ const copyCutCtrl = ContentState => {
     const wrapper = document.createElement('div')
     wrapper.innerHTML = html
     const removedElements = wrapper.querySelectorAll(
-      `.${CLASS_OR_ID.AG_TOOL_BAR},
-      .${CLASS_OR_ID.AG_MATH_RENDER},
-      .${CLASS_OR_ID.AG_RUBY_RENDER},
-      .${CLASS_OR_ID.AG_HTML_PREVIEW},
-      .${CLASS_OR_ID.AG_MATH_PREVIEW},
-      .${CLASS_OR_ID.AG_COPY_REMOVE},
-      .${CLASS_OR_ID.AG_LANGUAGE_INPUT},
-      .${CLASS_OR_ID.AG_HTML_TAG} br,
-      .${CLASS_OR_ID.AG_FRONT_ICON}`
+      `.${CLASS_OR_ID['AG_TOOL_BAR']},
+      .${CLASS_OR_ID['AG_MATH_RENDER']},
+      .${CLASS_OR_ID['AG_RUBY_RENDER']},
+      .${CLASS_OR_ID['AG_HTML_PREVIEW']},
+      .${CLASS_OR_ID['AG_MATH_PREVIEW']},
+      .${CLASS_OR_ID['AG_COPY_REMOVE']},
+      .${CLASS_OR_ID['AG_LANGUAGE_INPUT']}`
     )
 
     for (const e of removedElements) {
       e.remove()
     }
 
-    const images = wrapper.querySelectorAll('span.ag-inline-image img')
-    for (const image of images) {
-      const src = image.getAttribute('src')
-      let originSrc = null
-      for (const [sSrc, tSrc] of this.stateRender.urlMap.entries()) {
-        if (tSrc === src) {
-          originSrc = sSrc
-          break
-        }
-      }
-
-      if (originSrc) {
-        image.setAttribute('src', originSrc)
-      }
-    }
-
-    const hrs = wrapper.querySelectorAll('[data-role=hr]')
+    const hrs = wrapper.querySelectorAll(`[data-role=hr]`)
     for (const hr of hrs) {
       hr.replaceWith(document.createElement('hr'))
     }
 
-    const headers = wrapper.querySelectorAll('[data-head]')
+    const headers = wrapper.querySelectorAll(`[data-head]`)
     for (const header of headers) {
       const p = document.createElement('p')
       p.textContent = header.textContent
@@ -76,11 +54,11 @@ const copyCutCtrl = ContentState => {
     // in order to escape turndown translation
 
     const inlineRuleElements = wrapper.querySelectorAll(
-      `a.${CLASS_OR_ID.AG_INLINE_RULE},
-      code.${CLASS_OR_ID.AG_INLINE_RULE},
-      strong.${CLASS_OR_ID.AG_INLINE_RULE},
-      em.${CLASS_OR_ID.AG_INLINE_RULE},
-      del.${CLASS_OR_ID.AG_INLINE_RULE}`
+      `a.${CLASS_OR_ID['AG_INLINE_RULE']},
+      code.${CLASS_OR_ID['AG_INLINE_RULE']},
+      strong.${CLASS_OR_ID['AG_INLINE_RULE']},
+      em.${CLASS_OR_ID['AG_INLINE_RULE']},
+      del.${CLASS_OR_ID['AG_INLINE_RULE']}`
     )
     for (const e of inlineRuleElements) {
       const span = document.createElement('span')
@@ -88,24 +66,24 @@ const copyCutCtrl = ContentState => {
       e.replaceWith(span)
     }
 
-    const aLinks = wrapper.querySelectorAll(`.${CLASS_OR_ID.AG_A_LINK}`)
+    const aLinks = wrapper.querySelectorAll(`.${CLASS_OR_ID['AG_A_LINK']}`)
     for (const l of aLinks) {
       const span = document.createElement('span')
       span.innerHTML = l.innerHTML
       l.replaceWith(span)
     }
 
-    const codefense = wrapper.querySelectorAll('pre[data-role$=\'code\']')
+    const codefense = wrapper.querySelectorAll(`pre[data-role$='code']`)
     for (const cf of codefense) {
       const id = cf.id
       const block = this.getBlock(id)
       const language = block.lang || ''
       const selectedCodeLines = cf.querySelectorAll('.ag-code-line')
-      const value = Array.from(selectedCodeLines).map(codeLine => codeLine.textContent).join('\n')
+      const value = [...selectedCodeLines].map(codeLine => codeLine.textContent).join('\n')
       cf.innerHTML = `<code class="language-${language}">${value}</code>`
     }
 
-    const tightListItem = wrapper.querySelectorAll('.ag-tight-list-item')
+    const tightListItem = wrapper.querySelectorAll(`.ag-tight-list-item`)
     for (const li of tightListItem) {
       for (const item of li.childNodes) {
         if (item.tagName === 'P' && item.childElementCount === 1 && item.classList.contains('ag-paragraph')) {
@@ -114,27 +92,21 @@ const copyCutCtrl = ContentState => {
       }
     }
 
-    const htmlBlock = wrapper.querySelectorAll('figure[data-role=\'HTML\']')
+    const htmlBlock = wrapper.querySelectorAll(`figure[data-role='HTML']`)
     for (const hb of htmlBlock) {
       const selectedCodeLines = hb.querySelectorAll('span.ag-code-line')
-      const value = Array.from(selectedCodeLines).map(codeLine => codeLine.textContent).join('\n')
+      const value = [...selectedCodeLines].map(codeLine => codeLine.textContent).join('\n')
       const pre = document.createElement('pre')
       pre.textContent = value
       hb.replaceWith(pre)
     }
 
-    // Just work for turndown, turndown will add `leading` and `traling` space in line-break.
-    const lineBreaks = wrapper.querySelectorAll('span.ag-soft-line-break, span.ag-hard-line-break')
-    for (const b of lineBreaks) {
-      b.innerHTML = ''
-    }
-
-    const mathBlock = wrapper.querySelectorAll('figure.ag-container-block')
+    const mathBlock = wrapper.querySelectorAll(`figure.ag-container-block`)
     for (const mb of mathBlock) {
       const preElement = mb.querySelector('pre[data-role]')
       const functionType = preElement.getAttribute('data-role')
       const selectedCodeLines = mb.querySelectorAll('span.ag-code-line')
-      const value = Array.from(selectedCodeLines).map(codeLine => codeLine.textContent).join('\n')
+      const value = [...selectedCodeLines].map(codeLine => codeLine.textContent).join('\n')
       let pre
       switch (functionType) {
         case 'multiplemath':
@@ -156,7 +128,6 @@ const copyCutCtrl = ContentState => {
 
     let htmlData = wrapper.innerHTML
     const textData = this.htmlToMarkdown(htmlData)
-
     htmlData = marked(textData)
     return { html: htmlData, text: textData }
   }
@@ -186,7 +157,7 @@ const copyCutCtrl = ContentState => {
         const table = this.getTableBlock()
         if (!table) return
         const listIndentation = this.listIndentation
-        const markdown = new ExportMarkdown([table], listIndentation).generate()
+        const markdown = new ExportMarkdown([ table ], listIndentation).generate()
         event.clipboardData.setData('text/html', '')
         event.clipboardData.setData('text/plain', markdown)
         break

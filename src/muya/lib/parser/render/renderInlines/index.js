@@ -7,11 +7,11 @@ import htmlTag from './htmlTag'
 import hr from './hr'
 import tailHeader from './tailHeader'
 import hardLineBreak from './hardLineBreak'
-import softLineBreak from './softLineBreak'
 import codeFense from './codeFense'
 import inlineMath from './inlineMath'
 import autoLink from './autoLink'
 import loadImageAsync from './loadImageAsync'
+import htmlImage from './htmlImage'
 import image from './image'
 import delEmStrongFac from './delEmStringFactory'
 import emoji from './emoji'
@@ -37,11 +37,11 @@ export default {
   hr,
   tailHeader,
   hardLineBreak,
-  softLineBreak,
   codeFense,
   inlineMath,
   autoLink,
   loadImageAsync,
+  htmlImage,
   image,
   delEmStrongFac,
   emoji,

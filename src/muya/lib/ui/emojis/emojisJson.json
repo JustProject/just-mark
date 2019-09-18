@@ -1644,11 +1644,7 @@
     "aliases": [
       "policewoman"
     ],
-    "tags": [
-      "police",
-      "law",
-      "cop"
-    ]
+    "tags": []
   },
   {
     "emoji": "👮",
@@ -2000,7 +1996,7 @@
     "tags": []
   },
   {
-    "emoji": "👩‍✈️",
+    "emoji": "👩‍✈",
     "description": "woman pilot",
     "category": "People",
     "aliases": [
@@ -2009,7 +2005,7 @@
     "tags": []
   },
   {
-    "emoji": "👨‍✈️",
+    "emoji": "👨‍✈",
     "description": "man pilot",
     "category": "People",
     "aliases": [
@@ -2040,7 +2036,7 @@
     ]
   },
   {
-    "emoji": "👩‍⚖️",
+    "emoji": "👩‍⚖",
     "description": "woman judge",
     "category": "People",
     "aliases": [
@@ -2051,7 +2047,7 @@
     ]
   },
   {
-    "emoji": "👨‍⚖️",
+    "emoji": "👨‍⚖",
     "description": "man judge",
     "category": "People",
     "aliases": [

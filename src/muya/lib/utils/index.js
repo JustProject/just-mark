@@ -1,12 +1,11 @@
 // DOTO: Don't use Node API in editor folder, remove `path` @jocs
+// todo@jocs: remove the use of `axios` in muya
+import axios from 'axios'
 import createDOMPurify from 'dompurify'
 import { isInElectron, URL_REG } from '../config'
 
 const ID_PREFIX = 'ag-'
 let id = 0
-
-const TIMEOUT = 1500
-
 export const getUniqueId = () => `${ID_PREFIX}${id++}`
 
 export const getLongUniqueId = () => `${getUniqueId()}-${(+new Date()).toString(32)}`
@@ -24,8 +23,6 @@ export const isEven = number => Math.abs(number) % 2 === 0
 export const isLengthEven = (str = '') => str.length % 2 === 0
 
 export const snakeToCamel = name => name.replace(/_([a-z])/g, (p0, p1) => p1.toUpperCase())
-
-export const camelToSnake = name => name.replace(/([A-Z])/g, (_, p) => `-${p.toLowerCase()}`)
 /**
  *  Are two arrays have intersection
  */
@@ -136,7 +133,7 @@ export const deepCopy = object => {
   return obj
 }
 
-export const loadImage = async (url, detectContentType = false) => {
+export const loadImage = async (url, detectContentType) => {
   if (detectContentType) {
     const isImage = await checkImageContentType(url)
     if (!isImage) throw new Error('not an image')
@@ -144,11 +141,7 @@ export const loadImage = async (url, detectContentType = false) => {
   return new Promise((resolve, reject) => {
     const image = new Image()
     image.onload = () => {
-      resolve({
-        url,
-        width: image.width,
-        height: image.height
-      })
+      resolve(url)
     }
     image.onerror = err => {
       reject(err)
@@ -157,90 +150,17 @@ export const loadImage = async (url, detectContentType = false) => {
   })
 }
 
-export const isOnline = () => {
-  return navigator.onLine === true
-}
-
-export const getPageTitle = url => {
-  // No need to request the title when it's not url.
-  if (!url.startsWith('http')) {
-    return ''
-  }
-  // No need to request the title when off line.
-  if (!isOnline()) {
-    return ''
-  }
-
-  const req = new XMLHttpRequest()
-  let settle
-  const promise = new Promise((resolve, reject) => {
-    settle = resolve
-  })
-  const handler = () => {
-    if (req.readyState === XMLHttpRequest.DONE) {
-      if (req.status === 200) {
-        const contentType = req.getResponseHeader('Content-Type')
-        if (/text\/html/.test(contentType)) {
-          const { response } = req
-          if (typeof response === 'string') {
-            const match = response.match(/<title>(.*)<\/title>/)
-            return match[1] ? settle(match[1]) : settle('')
-          }
-          return settle('')
-        }
-        return settle('')
-      } else {
-        return settle('')
-      }
+export const checkImageContentType = async url => {
+  try {
+    const res = await axios.head(url)
+    const contentType = res.headers['content-type']
+    if (res.status === 200 && /^image\/(?:jpeg|png|gif|svg\+xml|webp)$/.test(contentType)) {
+      return true
     }
+    return false
+  } catch (err) {
+    return false
   }
-  const handleError = (e) => {
-    settle('')
-  }
-  req.open('GET', url)
-  req.onreadystatechange = handler
-  req.onerror = handleError
-  req.send()
-
-  // Resolve empty string when `TIMEOUT` passed.
-  const timer = new Promise((resolve, reject) => {
-    setTimeout(() => {
-      resolve('')
-    }, TIMEOUT)
-  })
-
-  return Promise.race([promise, timer])
-}
-
-export const checkImageContentType = url => {
-  const req = new XMLHttpRequest()
-  let settle
-  const promise = new Promise((resolve, reject) => {
-    settle = resolve
-  })
-  const handler = () => {
-    if (req.readyState === XMLHttpRequest.DONE) {
-      if (req.status === 200) {
-        const contentType = req.getResponseHeader('Content-Type')
-        if (/^image\/(?:jpeg|png|gif|svg\+xml|webp)$/.test(contentType)) {
-          settle(true)
-        } else {
-          settle(false)
-        }
-      } else {
-        settle(false)
-      }
-    }
-  }
-  const handleError = () => {
-    settle(false)
-  }
-  req.open('HEAD', url)
-  req.onreadystatechange = handler
-  req.onerror = handleError
-  req.send()
-
-  return promise
 }
 
 /**
@@ -313,7 +233,7 @@ export const unescapeHtml = text => {
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, '\'')
+    .replace(/&#39;/g, `'`)
 }
 
 export const escapeInBlockHtml = html => {
@@ -379,10 +299,4 @@ export const getParagraphReference = (ele, id) => {
     clientHeight: height,
     id
   }
-}
-
-export const verticalPositionInRect = (event, rect) => {
-  const { clientY } = event
-  const { top, height } = rect
-  return (clientY - top) > (height / 2) ? 'down' : 'up'
 }

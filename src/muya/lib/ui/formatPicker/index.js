@@ -8,7 +8,7 @@ const defaultOptions = {
   placement: 'top',
   modifiers: {
     offset: {
-      offset: '0, 5'
+      offset: '20, 5'
     }
   },
   showArrow: false
@@ -16,7 +16,6 @@ const defaultOptions = {
 
 class FormatPicker extends BaseFloat {
   static pluginName = 'formatPicker'
-
   constructor (muya, options = {}) {
     const name = 'ag-format-picker'
     const opts = Object.assign({}, defaultOptions, options)
@@ -54,7 +53,7 @@ class FormatPicker extends BaseFloat {
       if (i.icon) {
         // SVG icon Asset
         iconWrapperSelector = 'div.icon-wrapper'
-        icon = h('i.icon', h('i.icon-inner', {
+        icon = h('i.icon', h(`i.icon-inner`, {
           style: {
             background: `url(${i.icon}) no-repeat`,
             'background-size': '100%'
@@ -63,7 +62,7 @@ class FormatPicker extends BaseFloat {
       }
       const iconWrapper = h(iconWrapperSelector, icon)
       let itemSelector = `li.item.${i.type}`
-      if (formats.some(f => f.type === i.type || f.type === 'html_tag' && f.tag === i.type)) {
+      if (formats.some(f => f.type === i.type)) {
         itemSelector += '.active'
       }
       return h(itemSelector, {

@@ -18,9 +18,7 @@ const tableBlockCtrl = ContentState => {
       const rowBlock = this.createBlock('tr')
       i === 0 ? this.appendChild(tHead, rowBlock) : this.appendChild(tBody, rowBlock)
       for (j = 0; j < columns; j++) {
-        const cell = this.createBlock(i === 0 ? 'th' : 'td', {
-          text: headerTexts && i === 0 ? headerTexts[j] : ''
-        })
+        const cell = this.createBlock(i === 0 ? 'th' : 'td', headerTexts && i === 0 ? headerTexts[j] : '')
         this.appendChild(rowBlock, cell)
         cell.align = ''
         cell.column = j
@@ -43,18 +41,24 @@ const tableBlockCtrl = ContentState => {
 
   ContentState.prototype.getAnchor = function (block) {
     const { type, functionType } = block
-    switch (type) {
-      case 'span':
-        if (functionType === 'codeLine') {
+    switch (true) {
+      case /^span$/.test(type): {
+        if (!functionType) {
+          return this.closest(block, 'p')
+        } else if (functionType === 'codeLine') {
           return this.closest(block, 'figure') || this.closest(block, 'pre')
-        } else {
-          return this.getParent(block)
         }
-
-      case 'th':
-      case 'td':
+        return null
+      }
+      case /^(th|td)$/.test(type): {
         return this.closest(block, 'figure')
-
+      }
+      case /^h\d$/.test(type): {
+        return block
+      }
+      case /hr/.test(type): {
+        return block
+      }
       default:
         return null
     }
@@ -70,7 +74,7 @@ const tableBlockCtrl = ContentState => {
 
     if (!anchor) return
     this.insertAfter(figureBlock, anchor)
-    if (/p|h\d/.test(anchor.type) && !endBlock.text) {
+    if (anchor.type === 'p' && !endBlock.text) {
       this.removeBlock(anchor)
     }
     this.appendChild(figureBlock, table)
@@ -80,15 +84,16 @@ const tableBlockCtrl = ContentState => {
       start: { key, offset },
       end: { key, offset }
     }
+    this.muya.eventCenter.dispatch('stateChange')
     this.partialRender()
   }
 
   ContentState.prototype.createTable = function (tableChecker) {
-    this.createFigure(tableChecker)
+    const { eventCenter } = this.muya
 
-    this.muya.dispatchSelectionChange()
-    this.muya.dispatchSelectionFormats()
-    this.muya.dispatchChange()
+    this.createFigure(tableChecker)
+    const selectionChanges = this.selectionChange()
+    eventCenter.dispatch('selectionChange', selectionChanges)
   }
 
   ContentState.prototype.initTable = function (block) {
@@ -260,7 +265,7 @@ const tableBlockCtrl = ContentState => {
 
     if (target === 'row') {
       if (action === 'insert') {
-        const newRow = (location === 'previous' && block.type === 'th')
+        let newRow = (location === 'previous' && block.type === 'th')
           ? createRow(column, true)
           : createRow(column, false)
         if (location === 'previous') {

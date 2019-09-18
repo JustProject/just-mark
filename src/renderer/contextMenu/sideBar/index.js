@@ -1,4 +1,4 @@
-import { remote } from 'electron'
+import { remote } from '@/../main/electron'
 import {
   SEPARATOR,
   NEW_FILE,

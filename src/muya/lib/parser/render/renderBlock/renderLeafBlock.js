@@ -1,6 +1,6 @@
 import katex from 'katex'
-import mermaid from 'mermaid/dist/mermaid.core'
-import prism, { loadedCache, transfromAliasToOrigin } from '../../../prism/'
+import mermaid from 'mermaid'
+import prism, { loadedCache } from '../../../prism/'
 import { CLASS_OR_ID, DEVICE_MEMORY, PREVIEW_DOMPURIFY_CONFIG, HAS_TEXT_BLOCK_REG } from '../../../config'
 import { tokenizer } from '../../'
 import { snakeToCamel, sanitize, escapeHtml, getLongUniqueId, getImageInfo } from '../../../utils'
@@ -49,15 +49,15 @@ const hasReferenceToken = tokens => {
   return result
 }
 
-export default function renderLeafBlock (block, activeBlocks, matches, useCache = false) {
+export default function renderLeafBlock (block, cursor, activeBlocks, selectedBlock, matches, useCache = false) {
   const { loadMathMap } = this
-  const { cursor } = this.muya.contentState
-  let selector = this.getSelector(block, activeBlocks)
+  let selector = this.getSelector(block, cursor, activeBlocks, selectedBlock)
   // highlight search key in block
   const highlights = matches.filter(m => m.key === block.key)
   const {
     text,
     type,
+    headingStyle,
     align,
     checked,
     key,
@@ -65,16 +65,13 @@ export default function renderLeafBlock (block, activeBlocks, matches, useCache 
     functionType,
     editable
   } = block
-
   const data = {
     props: {},
     attrs: {},
     dataset: {},
     style: {}
   }
-
   let children = ''
-
   if (text) {
     let tokens = []
     if (highlights.length === 0 && this.tokenCache.has(text)) {
@@ -84,7 +81,7 @@ export default function renderLeafBlock (block, activeBlocks, matches, useCache 
       functionType !== 'codeLine' &&
       functionType !== 'languageInput'
     ) {
-      const hasBeginRules = type === 'span'
+      const hasBeginRules = /^(h\d|span|hr)/.test(type)
       tokens = tokenizer(text, highlights, hasBeginRules, this.labels)
       const hasReferenceTokens = hasReferenceToken(tokens)
       if (highlights.length === 0 && useCache && DEVICE_MEMORY >= 4 && !hasReferenceTokens) {
@@ -106,10 +103,10 @@ export default function renderLeafBlock (block, activeBlocks, matches, useCache 
       style: `text-align:${align}`
     })
   } else if (type === 'div') {
-    const code = this.codeCache.get(block.preSibling)
+    const code = this.muya.contentState.codeBlocks.get(block.preSibling)
     switch (functionType) {
-      case 'html': {
-        selector += `.${CLASS_OR_ID.AG_HTML_PREVIEW}`
+      case 'preview': {
+        selector += `.${CLASS_OR_ID['AG_HTML_PREVIEW']}`
         const htmlContent = sanitize(code, PREVIEW_DOMPURIFY_CONFIG)
         // handle empty html bock
         if (/^<([a-z][a-z\d]*)[^>]*?>(\s*)<\/\1>$/.test(htmlContent.trim())) {
@@ -130,10 +127,10 @@ export default function renderLeafBlock (block, activeBlocks, matches, useCache 
       }
       case 'multiplemath': {
         const key = `${code}_display_math`
-        selector += `.${CLASS_OR_ID.AG_CONTAINER_PREVIEW}`
+        selector += `.${CLASS_OR_ID['AG_CONTAINER_PREVIEW']}`
         if (code === '') {
           children = '< Empty Mathematical Formula >'
-          selector += `.${CLASS_OR_ID.AG_EMPTY}`
+          selector += `.${CLASS_OR_ID['AG_EMPTY']}`
         } else if (loadMathMap.has(key)) {
           children = loadMathMap.get(key)
         } else {
@@ -146,16 +143,16 @@ export default function renderLeafBlock (block, activeBlocks, matches, useCache 
             loadMathMap.set(key, children)
           } catch (err) {
             children = '< Invalid Mathematical Formula >'
-            selector += `.${CLASS_OR_ID.AG_MATH_ERROR}`
+            selector += `.${CLASS_OR_ID['AG_MATH_ERROR']}`
           }
         }
         break
       }
       case 'mermaid': {
-        selector += `.${CLASS_OR_ID.AG_CONTAINER_PREVIEW}`
+        selector += `.${CLASS_OR_ID['AG_CONTAINER_PREVIEW']}`
         if (code === '') {
           children = '< Empty Mermaid Block >'
-          selector += `.${CLASS_OR_ID.AG_EMPTY}`
+          selector += `.${CLASS_OR_ID['AG_EMPTY']}`
         } else {
           try {
             mermaid.parse(code)
@@ -163,7 +160,7 @@ export default function renderLeafBlock (block, activeBlocks, matches, useCache 
             this.mermaidCache.add(`#${block.key}`)
           } catch (err) {
             children = '< Invalid Mermaid Codes >'
-            selector += `.${CLASS_OR_ID.AG_MATH_ERROR}`
+            selector += `.${CLASS_OR_ID['AG_MATH_ERROR']}`
           }
         }
         break
@@ -171,10 +168,11 @@ export default function renderLeafBlock (block, activeBlocks, matches, useCache 
       case 'flowchart':
       case 'sequence':
       case 'vega-lite': {
-        selector += `.${CLASS_OR_ID.AG_CONTAINER_PREVIEW}`
+        const code = this.muya.contentState.codeBlocks.get(block.preSibling)
+        selector += `.${CLASS_OR_ID['AG_CONTAINER_PREVIEW']}`
         if (code === '') {
           children = '< Empty Diagram Block >'
-          selector += `.${CLASS_OR_ID.AG_EMPTY}`
+          selector += `.${CLASS_OR_ID['AG_EMPTY']}`
         } else {
           children = ''
           this.diagramCache.set(`#${block.key}`, {
@@ -185,16 +183,28 @@ export default function renderLeafBlock (block, activeBlocks, matches, useCache 
         break
       }
     }
+  } else if (/^h/.test(type)) {
+    if (/^h\d$/.test(type)) {
+      // TODO: This should be the best place to create and update the TOC.
+      //       Cache `block.key` and title and update only if necessary.
+      Object.assign(data.dataset, {
+        head: type
+      })
+      selector += `.${headingStyle}`
+    }
+    Object.assign(data.dataset, {
+      role: type
+    })
   } else if (type === 'input') {
     Object.assign(data.attrs, {
       type: 'checkbox'
     })
-    selector = `${type}#${key}.${CLASS_OR_ID.AG_TASK_LIST_ITEM_CHECKBOX}`
+    selector = `${type}#${key}.${CLASS_OR_ID['AG_TASK_LIST_ITEM_CHECKBOX']}`
     if (checked) {
       Object.assign(data.attrs, {
         checked: true
       })
-      selector += `.${CLASS_OR_ID.AG_CHECKBOX_CHECKED}`
+      selector += `.${CLASS_OR_ID['AG_CHECKBOX_CHECKED']}`
     }
     children = ''
   } else if (type === 'span' && functionType === 'codeLine') {
@@ -203,16 +213,16 @@ export default function renderLeafBlock (block, activeBlocks, matches, useCache 
       .replace(new RegExp(MARKER_HASK['>'], 'g'), '>')
       .replace(new RegExp(MARKER_HASK['"'], 'g'), '"')
       .replace(new RegExp(MARKER_HASK["'"], 'g'), "'")
-    // transfrom alias to original language
-    const transformedLang = transfromAliasToOrigin([lang])[0]
 
-    if (transformedLang && /\S/.test(code) && loadedCache.has(transformedLang)) {
+    selector += `.${CLASS_OR_ID['AG_CODE_LINE']}`
+
+    if (lang && /\S/.test(code) && loadedCache.has(lang)) {
       const wrapper = document.createElement('div')
-      wrapper.classList.add(`language-${transformedLang}`)
+      wrapper.classList.add(`language-${lang}`)
       wrapper.innerHTML = code
       prism.highlightElement(wrapper, false, function () {
         const highlightedCode = this.innerHTML
-        selector += `.language-${transformedLang}`
+        selector += `.language-${lang}`
         children = htmlToVNode(highlightedCode)
       })
     } else {
@@ -220,11 +230,12 @@ export default function renderLeafBlock (block, activeBlocks, matches, useCache 
     }
   } else if (type === 'span' && functionType === 'languageInput') {
     const html = getHighlightHtml(text, highlights)
+    selector += `.${CLASS_OR_ID['AG_LANGUAGE_INPUT']}`
     children = htmlToVNode(html)
   }
   if (!block.parent) {
     return h(selector, data, [this.renderIcon(block), ...children])
   } else {
     return h(selector, data, children)
-  }
+  } 
 }

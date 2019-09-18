@@ -38,7 +38,7 @@
             cols="30" rows="10" v-model="value" ref="textarea"
           ></textarea>
         </div>
-        <div class="buttons">
+        <div class="button">
           <a
             href="javascript:;"
             class="github"
@@ -67,56 +67,56 @@
 </template>
 
 <script>
-import { shell } from 'electron'
-import bus from '../../bus'
+  import { shell } from '@/../main/electron'
+  import bus from '../../bus'
 
-export default {
-  data () {
-    return {
-      showTweetDialog: false,
-      value: '',
-      selectedFace: 'smile'
-    }
-  },
-  created () {
-    bus.$on('tweetDialog', this.showDialog)
-  },
-  beforeDestroy () {
-    bus.$off('tweetDialog', this.showDialog)
-  },
-  methods: {
-    showDialog () {
-      this.showTweetDialog = true
-      this.value = ''
-      bus.$emit('editor-blur')
-      this.$nextTick(() => {
-        this.$refs.textarea.focus()
-      })
-    },
-    faceClick (name) {
-      this.selectedFace = name
-    },
-    reportViaGithub () {
-      shell.openExternal('https://github.com/marktext/marktext/issues/new')
-    },
-    reportViaTwitter () {
-      const { value, selectedFace } = this
-      if (!value) return
-      const origin = 'https://twitter.com/intent/tweet'
-
-      const params = {
-        via: 'marktextme',
-        url: encodeURI('https://github.com/marktext/marktext/'),
-        text: value
+  export default {
+    data () {
+      return {
+        showTweetDialog: false,
+        value: '',
+        selectedFace: 'smile'
       }
+    },
+    created () {
+      bus.$on('tweetDialog', this.showDialog)
+    },
+    beforeDestroy () {
+      bus.$off('tweetDialog', this.showDialog)
+    },
+    methods: {
+      showDialog () {
+        this.showTweetDialog = true
+        this.value = ''
+        bus.$emit('editor-blur')
+        this.$nextTick(() => {
+          this.$refs.textarea.focus()
+        })
+      },
+      faceClick (name) {
+        this.selectedFace = name
+      },
+      reportViaGithub () {
+        shell.openExternal('https://github.com/marktext/marktext/issues/new')
+      },
+      reportViaTwitter () {
+        const { value, selectedFace } = this
+        if (!value) return
+        const origin = 'https://twitter.com/intent/tweet'
 
-      if (selectedFace === 'smile') params.hashtags = 'happyMarkText'
+        const params = {
+          via: 'marktextme',
+          url: encodeURI('https://github.com/marktext/marktext/'),
+          text: value
+        }
 
-      shell.openExternal(`${origin}?${Object.keys(params).map(key => `${key}=${params[key]}`).join('&')}`)
-      this.showTweetDialog = false
+        if (selectedFace === 'smile') params.hashtags = 'happyMarkText'
+
+        shell.openExternal(`${origin}?${Object.keys(params).map(key => `${key}=${params[key]}`).join('&')}`)
+        this.showTweetDialog = false
+      }
     }
   }
-}
 </script>
 
 <style>
@@ -175,12 +175,12 @@ export default {
       height: 80px;
     }
   }
-  .tweet-dialog .buttons {
+  .tweet-dialog .button {
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
-  .tweet-dialog .buttons a.twitter {
+  .tweet-dialog .button a.twitter {
     color: var(--themeColor);
     text-decoration: none;
     width: auto;
@@ -193,14 +193,14 @@ export default {
     background: #eee;
     cursor: not-allowed;
   }
-  .tweet-dialog .buttons a.active {
+  .tweet-dialog .button a.active {
     background: var(--themeColor);
     color: #fff;
   }
-  .tweet-dialog .buttons a.active {
+  .tweet-dialog .button a.active {
     cursor: pointer;
   }
-  .tweet-dialog .buttons a.github {
+  .tweet-dialog .button a.github {
     color: var(--iconColor);
     text-decoration: none;
     &:hover {

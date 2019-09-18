@@ -1,81 +1,34 @@
 :root {
   /*editor*/
-  --themeColor: rgba(77, 120, 204, 1);
-  --themeColor90: rgba(77, 120, 204, .9);
-  --themeColor80: rgba(77, 120, 204, .8);
-  --themeColor70: rgba(77, 120, 204, .7);
-  --themeColor60: rgba(77, 120, 204, .6);
-  --themeColor50: rgba(77, 120, 204, .5);
-  --themeColor40: rgba(77, 120, 204, .4);
-  --themeColor30: rgba(77, 120, 204, .3);
-  --themeColor20: rgba(77, 120, 204, .2);
-  --themeColor10: rgba(77, 120, 204, .1);
-  --highlightThemeColor: #e2c08d;
-
+  --themeColor: #e2c08d;
   --highlightColor: #ffffff10;
   --selectionColor: #67769660;
   --editorColor: #9da5b4;
-  --editorColor80: #9da5b4;
-  --editorColor60: rgba(157, 165, 180, .6);
   --editorColor50: rgba(157, 165, 180, .5);
-  --editorColor40: rgba(157, 165, 180, .4);
   --editorColor30: rgba(157, 165, 180, .3);
   --editorColor10: rgba(157, 165, 180, .1);
   --editorColor04: rgba(157, 165, 180, .04);
   --editorBgColor: #282c34;
   --deleteColor: #ff6969;
-  --iconColor: rgba(255, 255, 255, .56);
+  --iconColor: rgba(255, 255, 255, .8);
   --codeBgColor: #3a3f4b;
   --codeBlockBgColor: #3a3f4b;
-  --inputBgColor: rgba(0, 0, 0, .1);
-  --focusColor: #568af2;
-
-  --buttonFontColor: #9da5b4;
-  --buttonBgColor: linear-gradient(#3a3f4b, #353b45);
-  --buttonBorder: 1px solid #181a1f;
-  --buttonShadow: none;
-  --buttonFontColorHover: #d7dae0;
-  --buttonBgColorHover: linear-gradient(#3e4451, #3a3f4b);
-  --buttonBorderHover: var(--buttonBorder);
-  --buttonFontColorActive: var(--buttonFontColor);
-  --buttonBgColorActive: #2c313a;
-  --buttonBorderActive: var(--buttonBorder);
-  --buttonFocusBorder: 1px solid #568af2;
-
-  --buttonPrimaryFontColor: #ffffff;
-  --buttonPrimaryBgColor: linear-gradient(#557ecf, #4d78cc);
-  --buttonPrimaryBorder: 1px solid #181a1f;;
-  --buttonPrimaryShadow: none;
-  --buttonPrimaryFontColorHover: var(--buttonPrimaryFontColor);
-  --buttonPrimaryBgColorHover: linear-gradient(#6187d2, #5981d0);
-  --buttonPrimaryBorderHover: var(--buttonPrimaryBorder);
-  --buttonPrimaryFontColorActive: var(--buttonPrimaryFontColor);
-  --buttonPrimaryBgColorActive: #3d6bc8;
-  --buttonPrimaryBorderActive: var(--buttonPrimaryBorder);
-  --buttonPrimaryFocusBorder: none;
-  --buttonPrimaryFocusShadow: inset 0 0 0 1px rgba(24, 26, 31, 0.5), 0 0 0 1px #568af2;
-  --tableBorderColor: #363839;
 
   /*marktext*/
   --sideBarColor: #9da5b4;
-  --sideBarIconColor: var(--iconColor);
   --sideBarTitleColor: #9da5b4;
   --sideBarTextColor: #9da5b4;
   --sideBarBgColor: #21252b;
   --sideBarItemHoverBgColor: #3a3f4b;
   --itemBgColor: #21252b;
-
-  --floatFontColor: #9da5b4;
   --floatBgColor: #21252b;
   --floatHoverColor: #3a3f4b;
   --floatBorderColor: #181a1f;
-  --floatShadow: rgba(0, 0, 0, 0.3);
   --maskColor: rgba(0, 0, 0, .7);
-  --editorAreaWidth: 750px;
+  --editorAreaWidth: 700px;
 }
 
-::-webkit-scrollbar,
-::-webkit-scrollbar-corner {
+::-webkit-scrollbar {
   background: var(--editorBgColor);
 }
 ::-webkit-scrollbar:vertical {
@@ -91,98 +44,69 @@
   background: #4b5362;
 }
 
-/* --- Element UI ------------------------------------------------ */
-
-.v-modal {
-  background: #08090a !important;
-  opacity: 0.65 !important;
+.el-tooltip__popper.is-dark {
+  border: 1px solid #181a1f;
 }
-.el-dialog,
-.el-dialog.ag-dialog-table {
-  border-radius: 6px !important;
+.v-modal {
+  background: #000;
+}
+.el-dialog {
   box-shadow: 0 1px 3px rgba(0,0,0,.3) !important;
   border: 1px solid #181a1f !important;
-  background: #252830 !important;
 }
 
-.el-button:focus {
-  color: var(--buttonFontColor);
-}
-.el-button--primary:focus {
-  color: var(--buttonPrimaryFontColor);
-  background: var(--buttonPrimaryBgColor);
+.mt-notification > .notice-bg.icon-message {
+  background: #4d78cc !important;
 }
 
-/* --- Core elements --------------------------------------------- */
-
-.ag-front-menu .submenu,
-.ag-float-wrapper {
-  box-shadow: 0 4px 8px 0 var(--floatShadow) !important;
+.drop-container.active {
+  border: 1px dashed #4d78cc !important;
 }
 
 .title-bar .frameless-titlebar-button > div > svg {
   fill: #ffffff;
 }
-.title-bar .frameless-titlebar-minimize:hover,
-.title-bar .frameless-titlebar-toggle:hover {
+.frameless-titlebar-minimize[data-v-0a64f081]:hover,
+.frameless-titlebar-toggle[data-v-0a64f081]:hover {
   background-color: rgba(215, 218, 224, 0.05) !important;
 }
-
-.input-wrapper {
-  border-radius: 3px !important;
-  border: 1px solid #181a1f !important;
-  background: #1b1d23 !important;
-}
-
-.aidou .search-wrapper {
-  box-shadow: none;
-}
-
-/* --- UI elements ----------------------------------------------- */
 
 .side-bar {
   border-right: 1px solid #181a1f !important;
 }
 .left-column ul > li > svg {
-  fill: rgba(215, 218, 224, 0.6) !important;
+  color: rgba(215, 218, 224, 0.6) !important;
 }
 .left-column ul > li:hover > svg {
-  fill: #d7dae0 !important;
-}
-.left-column ul > li:hover > svg {
-  fill: #d7dae0 !important;
+  color: #d7dae0 !important;
 }
 .left-column ul > li.active > svg {
+  color: #4d78cc !important;
+}
+.open-project svg,
+.empty .no-data svg,
+.side-bar-toc .no-data svg {
   fill: #4d78cc !important;
 }
 
-.open-project button.button-primary,
-.recent-files-projects button.button-primary {
-  box-shadow: none;
+.recent-files-projects a,
+.open-project a {
+  color: #9da5b4 !important;
+  border: 1px solid #181a1f !important;
+  background-color: #353b45 !important;
+  background-image: linear-gradient(#3a3f4b, #353b45) !important;
+  box-shadow: none !important;
+}
+.recent-files-projects a:hover,
+.open-project a:hover {
+  color: #d7dae0 !important;
+  background-image: linear-gradient(#3e4451, #3a3f4b) !important;
 }
 
 .editor-tabs {
+  border-bottom: 1px solid #181a1f;
   box-shadow: none !important;
 }
-.editor-tabs:after {
-  position: absolute;
-  content: '';
-  border-bottom: 1px solid #181a1f;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 1;
-}
-.editor-tabs ul.tabs-container:after {
-  position: absolute;
-  content: '';
-  border-bottom: 1px solid #181a1f;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 2;
-}
-
 .tabs-container > li,
 .tabs-container > li.active {
   background: var(--editorBgColor) !important;
@@ -191,7 +115,7 @@
   border: 1px solid #181a1f;
   border-bottom: none;
 }
-.tabs-container > li.active:after {
+.tabs-container > li.active:not(:last-child):after {
   top: 0 !important;
   right: auto !important;
   width: 2px !important;
@@ -202,23 +126,18 @@
   fill: #4d78cc;
 }
 
-/* --- Editor ---------------------------------------------------- */
-
-blockquote::before {
-  background: var(--highlightThemeColor);
-}
-
 :not(pre) > code[class*="language-"],
-pre:not(.CodeMirror-line),
-pre[class*="language-"],
 pre.ag-paragraph {
   background: var(--codeBlockBgColor) !important;
-  border: none !important;
 }
 
 p:not(.ag-active)[data-role="hr"]::before {
   border-top: 2px dashed #4b5362 !important;
   background: none !important;
+}
+
+.input-wrapper {
+  background: #1b1d23 !important;
 }
 
 li.ag-task-list-item {
@@ -275,9 +194,6 @@ li.ag-task-list-item > input::after {
 }
 li.ag-task-list-item > input.ag-checkbox-checked::after {
   transform: rotate(-45deg) scale(1);
-}
-figure.ag-active.ag-container-block > div.ag-container-preview {
-  box-shadow: 0 3px 8px 0 var(--floatShadow) !important;
 }
 
 /* ------------------------------------ */
