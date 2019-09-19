@@ -32,20 +32,21 @@
   const msg = 'jpg | png | gif | jpeg only, max size 5M';
 
   export default {
-    data () {
+    data() {
       return {
         showUpload: false,
         message: msg,
         error: false,
       }
     },
-    created () {
+    created() {
+      console.log('tick upload image start.');
       this.$nextTick(() => {
         bus.$on('upload-image', this.handleUpload);
       });
     },
     methods: {
-      handleBeforeUpload (file) {
+      handleBeforeUpload(file) {
         const MAX_SIZE = 5 * 1024 * 1024;
         if (!/png|jpg|jpeg|gif/.test(file.type)) {
           this.message = 'jpg | png | gif | jpeg only';
@@ -60,16 +61,16 @@
         this.message = msg;
         this.error = false
       },
-      handleUpload () {
+      handleUpload() {
         if (!this.showUpload) {
-          this.showUpload = true
+          this.showUpload = true;
           bus.$emit('editor-blur')
         }
       },
-      handleResponse (res) {
+      handleResponse(res) {
         if (res.code === 'success') {
           // handle success
-          const { url, delete: deletionUrl } = res.data
+          const {url, delete: deletionUrl} = res.data
           this.showUpload = false
           bus.$emit('image-uploaded', url, deletionUrl)
         } else if (res.code === 'error') {
@@ -94,8 +95,8 @@
   .el-upload-dragger {
     background: var(--itemBgColor);
     & .el-upload__text {
-      color: var(--sideBarColor);
-      & em {
+        color: var(--sideBarColor);
+    & em {
         color: var(--themeColor);
       }
     }
