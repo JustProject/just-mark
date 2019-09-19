@@ -58,8 +58,8 @@ class Muya {
   }
 
   getMarkdown () {
-    const blocks = this.contentState.getBlocks()
-    const listIndentation = this.contentState.listIndentation
+    const blocks = this.contentState.getBlocks();
+    const listIndentation = this.contentState.listIndentation;
     return new ExportMarkdown(blocks, listIndentation).generate()
   }
 

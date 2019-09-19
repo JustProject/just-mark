@@ -298,18 +298,18 @@
           if (type === 'absolute' || type === 'relative') {
             this.$store.dispatch('ASK_FOR_INSERT_IMAGE', type)
           } else if (type === 'upload') {
-            bus.$emit('upload-image')
+            bus.$emit('upload-image');
           }
         });
 
         this.editor.on('image-path-autocomplement', src => {
           this.$store.dispatch('ASK_FOR_IMAGE_AUTO_PATH', src)
-        })
+        });
 
         this.editor.on('change', changes => {
           // WORKAROUND: "id: 'muya'"
           this.$store.dispatch('LISTEN_FOR_CONTENT_CHANGE', Object.assign(changes, { id: 'muya' }))
-        })
+        });
 
         this.editor.on('format-click', ({ event, formatType, data }) => {
           const isOsx = this.platform === 'darwin'
@@ -345,8 +345,9 @@
         })
 
         this.editor.on('contextmenu', (event, selectionChanges) => {
-          showContextMenu(event, selectionChanges)
-        })
+          // showContextMenu(event, selectionChanges)
+        });
+
         document.addEventListener('keyup', this.keyup)
       })
     },
@@ -541,7 +542,7 @@
       },
 
       handleEditTable (data) {
-        const { editor } = this
+        const { editor } = this;
         editor && editor.editTable(data)
       },
 

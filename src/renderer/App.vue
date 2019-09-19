@@ -3,35 +3,41 @@
     class="editor-container"
   >
     <side-bar></side-bar>
-    <title-bar
-      :project="projectTree"
-      :pathname="pathname"
-      :filename="filename"
-      :active="windowActive"
-      :word-count="wordCount"
-      :platform="platform"
-      :is-saved="isSaved"
-    ></title-bar>
-    <!--      <recent-->
-    <!--        v-if="!hasCurrentFile && init"-->
-    <!--      ></recent>-->
-    <editor-with-tabs
-      v-if="hasCurrentFile && init"
-      :markdown="markdown"
-      :filename="filename"
-      :cursor="cursor"
-      :source-code="sourceCode"
-      :show-tab-bar="showTabBar"
-      :text-direction="textDirection"
-      :platform="platform"
-    ></editor-with-tabs>
-    <aidou></aidou>
-    <upload-image></upload-image>
-    <about-dialog></about-dialog>
-    <font></font>
-    <rename></rename>
-    <tweet></tweet>
-    <import-modal></import-modal>
+    <div class="editor-middle">
+
+      <title-bar
+        :project="projectTree"
+        :pathname="pathname"
+        :filename="filename"
+        :active="windowActive"
+        :word-count="wordCount"
+        :platform="platform"
+        :is-saved="isSaved"
+      ></title-bar>
+
+      <upload-image></upload-image>
+
+      <!--      <recent-->
+      <!--        v-if="!hasCurrentFile && init"-->
+      <!--      ></recent>-->
+      <editor-with-tabs
+        v-if="hasCurrentFile && init"
+        :markdown="markdown"
+        :filename="filename"
+        :cursor="cursor"
+        :source-code="sourceCode"
+        :show-tab-bar="showTabBar"
+        :text-direction="textDirection"
+        :platform="platform"
+      ></editor-with-tabs>
+
+      <!--    <aidou></aidou>-->
+      <!--    <about-dialog></about-dialog>-->
+      <!--    <font></font>-->
+      <!--    <rename></rename>-->
+      <!--    <tweet></tweet>-->
+      <!--    <import-modal></import-modal>-->
+    </div>
   </div>
 </template>
 
@@ -169,8 +175,9 @@
       }, false)
 
       this.$nextTick(() => {
-        const win = remote.getCurrentWindow()
-        const style = win.stylePrefs || DEFAULT_STYLE
+        // const win = remote.getCurrentWindow();
+        // const style = win.stylePrefs || DEFAULT_STYLE;
+        const style = DEFAULT_STYLE;
         addStyles(style)
       })
     }
@@ -202,11 +209,8 @@
     flex: 1;
     min-height: 100vh;
     position: relative;
-
-  &
-  > .editor {
-    flex: 1;
-  }
-
+    & > .editor {
+      flex: 1;
+    }
   }
 </style>
