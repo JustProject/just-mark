@@ -40,8 +40,8 @@ export const getPath = directory => {
 }
 
 export const getMenuItemById = menuId => {
-  const menus = Menu.getApplicationMenu()
-  return menus.getMenuItemById(menuId)
+  // const menus = Menu.getApplicationMenu()
+  // return menus.getMenuItemById(menuId)
 }
 
 export const log = data => {

@@ -12,11 +12,11 @@ const getAndSendImagePath = (win, type) => {
       name: 'Images',
       extensions: IMAGE_EXTENSIONS
     }]
-  })
+  });
   if (filename && filename[0]) {
     win.webContents.send('AGANI::INSERT_IMAGE', { filename: filename[0], type })
-  }
-}
+  };
+};
 
 ipcMain.on('AGANI::ask-for-insert-image', (e, type) => {
   const win = BrowserWindow.fromWebContents(e.sender)

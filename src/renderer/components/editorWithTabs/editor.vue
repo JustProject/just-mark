@@ -245,8 +245,8 @@
           bulletListMarker,
           tabSize,
           listIndentation,
-          hideQuickInsertHint
-        }
+          hideQuickInsertHint,
+        };
         if (/dark/i.test(theme)) {
           Object.assign(options, {
             mermaidTheme: 'dark',
@@ -300,7 +300,7 @@
           } else if (type === 'upload') {
             bus.$emit('upload-image')
           }
-        })
+        });
 
         this.editor.on('image-path-autocomplement', src => {
           this.$store.dispatch('ASK_FOR_IMAGE_AUTO_PATH', src)

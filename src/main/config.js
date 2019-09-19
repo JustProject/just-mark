@@ -1,12 +1,13 @@
 import path from 'path'
 
+process.platform = 'darwin';
 export const isOsx = process.platform === 'darwin'
 export const isWindows = process.platform === 'win32'
 export const isLinux = process.platform === 'linux'
 
 export const defaultWinOptions = {
   // icon: path.join(__static, 'logo-96px.png'),
-  icon:'../../static/logo-96px.png',
+  icon: '../../static/logo-96px.png',
   minWidth: 450,
   minHeight: 220,
   webPreferences: {

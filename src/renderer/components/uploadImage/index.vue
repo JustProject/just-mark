@@ -27,37 +27,37 @@
 </template>
 
 <script>
-  import bus from '../../bus'
+  import bus from '../../bus';
 
-  const msg = 'jpg | png | gif | jpeg only, max size 5M'
+  const msg = 'jpg | png | gif | jpeg only, max size 5M';
 
   export default {
     data () {
       return {
         showUpload: false,
         message: msg,
-        error: false
+        error: false,
       }
     },
     created () {
       this.$nextTick(() => {
-        bus.$on('upload-image', this.handleUpload)
-      })
+        bus.$on('upload-image', this.handleUpload);
+      });
     },
     methods: {
       handleBeforeUpload (file) {
-        const MAX_SIZE = 5 * 1024 * 1024
+        const MAX_SIZE = 5 * 1024 * 1024;
         if (!/png|jpg|jpeg|gif/.test(file.type)) {
-          this.message = 'jpg | png | gif | jpeg only'
-          this.error = true
+          this.message = 'jpg | png | gif | jpeg only';
+          this.error = true;
           return false
         }
         if (file.size > MAX_SIZE) {
-          this.message = 'Upload image limit to 5M'
-          this.error = true
+          this.message = 'Upload image limit to 5M';
+          this.error = true;
           return false
         }
-        this.message = msg
+        this.message = msg;
         this.error = false
       },
       handleUpload () {

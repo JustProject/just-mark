@@ -42,12 +42,12 @@
   import {BrowserWindow} from "../../main/electron";
 
   export default {
-    name : 'NavMenu',
+    name: 'NavMenu',
     props: ['navMenus'],
     methods: {
-      click(navMenu){
+      click(navMenu) {
         // console.log("window:",BrowserWindow.win.webContents)
-        navMenu.click(navMenu,BrowserWindow)
+        navMenu.click(navMenu, BrowserWindow)
       }
     },
   }
@@ -70,9 +70,9 @@
     color: #909399;
   }
 
- /*.el-submenu__title{*/
- /*   height: 20px;*/
- /*   line-height: 20px;*/
- /* }*/
+  /*.el-submenu__title{*/
+  /*   height: 20px;*/
+  /*   line-height: 20px;*/
+  /* }*/
 
 </style>

@@ -60,9 +60,9 @@ const imagePathCtrl = ContentState => {
       }
       if (src === '') {
         const cb = item => {
-          const type = item.label
+          const type = item.label;
           eventCenter.dispatch('insert-image', type)
-        }
+        };
 
         const list = [{
           text: 'Absolute Path',
@@ -76,9 +76,9 @@ const imagePathCtrl = ContentState => {
           text: 'Upload Image',
           iconClass: 'icon-upload',
           label: 'upload'
-        }]
+        }];
 
-        const paragraph = findNearestParagraph(node)
+        const paragraph = findNearestParagraph(node);
         const reference = getParagraphReference(node, paragraph.id)
         eventCenter.dispatch('muya-image-picker', {
           reference,

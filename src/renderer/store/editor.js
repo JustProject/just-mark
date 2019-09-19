@@ -403,9 +403,9 @@ const actions = {
       bus.$emit('file-loaded', { id, markdown })
       commit('SET_LAYOUT', {
         rightColumn: 'files',
-        showSideBar: false,
-        showTabBar: false
-      })
+        showSideBar: true,
+        showTabBar: true,
+      });
       dispatch('SET_LAYOUT_MENU_ITEM')
     })
   },
@@ -620,9 +620,9 @@ const actions = {
 
   LISTEN_FOR_INSERT_IMAGE ({ commit, state }) {
     ipcRenderer.on('AGANI::INSERT_IMAGE', (e, { filename: imagePath, type }) => {
-      if (!hasKeys(state.currentFile)) return
+      if (!hasKeys(state.currentFile)) return;
       if (type === 'absolute' || type === 'relative') {
-        const { pathname } = state.currentFile
+        const { pathname } = state.currentFile;
         if (type === 'relative' && pathname) {
           imagePath = path.relative(path.dirname(pathname), imagePath)
         }

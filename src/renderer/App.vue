@@ -3,43 +3,41 @@
     class="editor-container"
   >
     <side-bar></side-bar>
-    <div class="editor-middle">
-      <title-bar
-        :project="projectTree"
-        :pathname="pathname"
-        :filename="filename"
-        :active="windowActive"
-        :word-count="wordCount"
-        :platform="platform"
-        :is-saved="isSaved"
-      ></title-bar>
-      <recent
-        v-if="!hasCurrentFile && init"
-      ></recent>
-      <editor-with-tabs
-        v-if="hasCurrentFile && init"
-        :markdown="markdown"
-        :filename="filename"
-        :cursor="cursor"
-        :source-code="sourceCode"
-        :show-tab-bar="showTabBar"
-        :text-direction="textDirection"
-        :platform="platform"
-      ></editor-with-tabs>
-      <aidou></aidou>
-      <upload-image></upload-image>
-      <about-dialog></about-dialog>
-      <font></font>
-      <rename></rename>
-      <tweet></tweet>
-      <import-modal></import-modal>
-    </div>
+    <title-bar
+      :project="projectTree"
+      :pathname="pathname"
+      :filename="filename"
+      :active="windowActive"
+      :word-count="wordCount"
+      :platform="platform"
+      :is-saved="isSaved"
+    ></title-bar>
+    <!--      <recent-->
+    <!--        v-if="!hasCurrentFile && init"-->
+    <!--      ></recent>-->
+    <editor-with-tabs
+      v-if="hasCurrentFile && init"
+      :markdown="markdown"
+      :filename="filename"
+      :cursor="cursor"
+      :source-code="sourceCode"
+      :show-tab-bar="showTabBar"
+      :text-direction="textDirection"
+      :platform="platform"
+    ></editor-with-tabs>
+    <aidou></aidou>
+    <upload-image></upload-image>
+    <about-dialog></about-dialog>
+    <font></font>
+    <rename></rename>
+    <tweet></tweet>
+    <import-modal></import-modal>
   </div>
 </template>
 
 <script>
-  import { remote } from '@/../main/electron'
-  import { addStyles, addThemeStyle } from '@/util/theme'
+  import {remote} from '@/../main/electron'
+  import {addStyles, addThemeStyle} from '@/util/theme'
   import Recent from '@/components/recent'
   import EditorWithTabs from '@/components/editorWithTabs'
   import TitleBar from '@/components/titleBar'
@@ -51,9 +49,9 @@
   import Rename from '@/components/rename'
   import Tweet from '@/components/tweet'
   import ImportModal from '@/components/import'
-  import { mapState } from 'vuex'
+  import {mapState} from 'vuex'
   import bus from '@/bus'
-  import { DEFAULT_STYLE } from '@/config'
+  import {DEFAULT_STYLE} from '@/config'
 
   export default {
     name: 'marktext',
@@ -70,9 +68,8 @@
       Tweet,
       ImportModal
     },
-    data () {
-      return {
-      }
+    data() {
+      return {}
     },
     computed: {
       ...mapState({
@@ -93,7 +90,7 @@
       ...mapState([
         'windowActive', 'platform', 'init'
       ]),
-      hasCurrentFile () {
+      hasCurrentFile() {
         return this.markdown !== undefined
       }
     },
@@ -104,14 +101,12 @@
         }
       }
     },
-    created () {
-      const { dispatch } = this.$store
+    created() {
+      const {dispatch} = this.$store
       // store/index.js
       dispatch('LINTEN_WIN_STATUS')
-      // module: tweet
-      dispatch('LISTEN_FOR_TWEET')
       // module: layout
-      dispatch('LISTEN_FOR_LAYOUT')
+      dispatch('LISTEN_FOR_LAYOUT');
       dispatch('LISTEN_FOR_REQUEST_LAYOUT')
       // module: listenForMain
       dispatch('LISTEN_FOR_IMAGE_PATH')
@@ -149,6 +144,7 @@
       dispatch('LISTEN_FOR_TEXT_DIRECTION_MENU')
       // module: notification
       dispatch('LISTEN_FOR_NOTIFICATION')
+      dispatch('NEW_BLANK_FILE')
 
       // prevent Chromium's default behavior and try to open the first file
       window.addEventListener('dragover', e => {
@@ -193,19 +189,24 @@
     right: 0;
     bottom: 0;
   }
+
   .editor-container .hide {
     z-index: -1;
     opacity: 0;
     position: absolute;
     left: -10000px;
   }
+
   .editor-middle {
     display: flex;
     flex: 1;
     min-height: 100vh;
     position: relative;
-    & > .editor {
-      flex: 1;
-    }
+
+  &
+  > .editor {
+    flex: 1;
+  }
+
   }
 </style>

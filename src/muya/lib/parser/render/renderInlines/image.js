@@ -11,8 +11,8 @@ export default function image (h, cursor, block, token, outerClass) {
     cursorStart.key === cursorEnd.key &&
     cursorStart.offset === cursorEnd.offset &&
     cursorStart.offset === end - 1 &&
-    !IMAGE_EXT_REG.test(token.src) &&
-    isInElectron
+    !IMAGE_EXT_REG.test(token.src)
+    // isInElectron
   ) {
     eventCenter.dispatch('image-path', token.src)
   }

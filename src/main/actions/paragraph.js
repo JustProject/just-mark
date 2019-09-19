@@ -92,25 +92,25 @@ export const paragraph = (win, type) => {
 
 ipcMain.on('AGANI::selection-change', (e, { start, end, affiliation }) => {
   // format menu
-  const formatMenuItem = getMenuItemById('formatMenuItem')
-  formatMenuItem.submenu.items.forEach(item => (item.enabled = true))
-  // handle menu checked
-  setCheckedMenuItem(affiliation)
-  // handle disable
-  setParagraphMenuItemStatus(true)
-
-  if (
-    (/th|td/.test(start.type) && /th|td/.test(end.type)) ||
-    (start.type === 'span' && start.block.functionType === 'codeLine') ||
-    (end.type === 'span' && end.block.functionType === 'codeLine')
-  ) {
-    setParagraphMenuItemStatus(false)
-  } else if (start.key !== end.key) {
-    formatMenuItem.submenu.items
-      .filter(item => item.id && DISABLE_LABELS.includes(item.id))
-      .forEach(item => (item.enabled = false))
-    disableNoMultiple(DISABLE_LABELS)
-  } else if (!affiliation.slice(0, 3).some(p => /ul|ol/.test(p.type))) {
-    disableNoMultiple(['looseListItemMenuItem'])
-  }
-})
+  // const formatMenuItem = getMenuItemById('formatMenuItem')
+  // formatMenuItem.submenu.items.forEach(item => (item.enabled = true))
+  // // handle menu checked
+  // setCheckedMenuItem(affiliation)
+  // // handle disable
+  // setParagraphMenuItemStatus(true)
+  //
+  // if (
+  //   (/th|td/.test(start.type) && /th|td/.test(end.type)) ||
+  //   (start.type === 'span' && start.block.functionType === 'codeLine') ||
+  //   (end.type === 'span' && end.block.functionType === 'codeLine')
+  // ) {
+  //   setParagraphMenuItemStatus(false)
+  // } else if (start.key !== end.key) {
+  //   formatMenuItem.submenu.items
+  //     .filter(item => item.id && DISABLE_LABELS.includes(item.id))
+  //     .forEach(item => (item.enabled = false))
+  //   disableNoMultiple(DISABLE_LABELS)
+  // } else if (!affiliation.slice(0, 3).some(p => /ul|ol/.test(p.type))) {
+  //   disableNoMultiple(['looseListItemMenuItem'])
+  // }
+});

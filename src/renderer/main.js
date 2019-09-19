@@ -1,6 +1,6 @@
 import Vue from 'vue'
 import axios from 'axios'
-// import { crashReporter, ipcRenderer } from 'electron'
+import { ipcRenderer } from '@/../main/electron'
 import lang from 'element-ui/lib/locale/lang/en'
 import locale from 'element-ui/lib/locale'
 import App from './app'
@@ -27,6 +27,7 @@ import './assets/styles/printService.css'
 
 // Decode source map in production - must be registered first
 import sourceMapSupport from 'source-map-support'
+
 sourceMapSupport.install({
   environment: 'node',
   handleUncaughtExceptions: false,
@@ -43,18 +44,19 @@ sourceMapSupport.install({
 
 // Register renderer error handler
 window.addEventListener('error', event => {
-  const { message, name, stack } = event.error
+  const {message, name, stack} = event.error
   const copy = {
     message,
     name,
     stack
-  }
+  };
   // pass error to error handler
   ipcRenderer.send('AGANI::handle-renderer-error', copy)
-})
+});
 
 // Configure Vue
 import ElementUI from 'element-ui';
+
 Vue.use(ElementUI);
 locale.use(lang)
 
@@ -81,7 +83,7 @@ services.forEach(s => {
 
 /* eslint-disable no-new */
 new Vue({
-  components: { App },
+  components: {App},
   store,
   template: '<App/>'
 }).$mount('#app')

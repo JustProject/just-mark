@@ -5,10 +5,11 @@ export const sideBarIcons = [
   }, {
     name: 'search',
     icon: 'icon-search'
-  }, {
-    name: 'toc',
-    icon: 'icon-header'
-  }
+  },
+  // {
+  //   name: 'toc',
+  //   icon: 'icon-header'
+  // }
 ]
 
 export const sideBarBottomIcons = [
