@@ -324,11 +324,11 @@
             this.imageViewer = new ViewImage(this.$refs.imageViewer, {
               url: data,
               snapView: true
-            })
+            });
 
             this.setImageViewerVisible(true)
           }
-        })
+        });
 
         this.editor.on('selectionChange', changes => {
           const { y } = changes.cursorCoords
@@ -338,11 +338,11 @@
 
           this.selectionChange = changes
           this.$store.dispatch('SELECTION_CHANGE', changes)
-        })
+        });
 
         this.editor.on('selectionFormats', formats => {
           this.$store.dispatch('SELECTION_FORMATS', formats)
-        })
+        });
 
         this.editor.on('contextmenu', (event, selectionChanges) => {
           // showContextMenu(event, selectionChanges)
